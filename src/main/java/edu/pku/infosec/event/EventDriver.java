@@ -1,11 +1,10 @@
 package edu.pku.infosec.event;
 
-import java.util.Comparator;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
 public class EventDriver {
-    private static final Queue<Event> eventQueue = new PriorityQueue<>(Comparator.comparingLong(Event::getTimeToHappen));
+    private static final Queue<Event> eventQueue = new PriorityQueue<>();
     private static long currentTime;
 
     private static void nextEvent() {

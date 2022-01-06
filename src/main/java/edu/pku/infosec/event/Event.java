@@ -2,7 +2,7 @@ package edu.pku.infosec.event;
 
 import edu.pku.infosec.node.Node;
 
-public class Event {
+public class Event implements Comparable<Event> {
     private long timeToHappen;
     private final Node responsibleNode;
     private final EventHandler handlerFunc;
@@ -26,5 +26,10 @@ public class Event {
         }
         else
             handlerFunc.run(responsibleNode, params);
+    }
+
+    @Override
+    public int compareTo(Event o) {
+        return Long.compare(timeToHappen, o.timeToHappen);
     }
 }
