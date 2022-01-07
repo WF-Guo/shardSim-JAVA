@@ -9,18 +9,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
 
-public class Network {
-    public Node[] nodes;
+public abstract class Network {
+    private final Node[] nodes;
     private final List<List<Edge>> graph;
     private final int[][] dist;
     private final Edge[][] nextEdge;
     private final boolean limitBandwidth;
 
-    Network(int size, boolean limitBandwidth) {
+    protected Network(int size, boolean limitBandwidth) {
         this.limitBandwidth = limitBandwidth;
         nodes = new Node[size];
-        for(int i = 0; i < nodes.length; i++)
-            nodes[i] = new Node(i);
+        for(int i = 0; i < nodes.length; i++) {
+            nodes[i] = new Node(i,this);
+        }
         graph = new ArrayList<>(size);
         dist = new int[size][size];
         nextEdge = new Edge[size][size];
@@ -31,16 +32,16 @@ public class Network {
         }
     }
 
-    public void addEdge(int u, int v, int latency) {
+    protected final void addEdge(int u, int v, int latency) {
         assert !limitBandwidth : "Bandwidth is required in this network.";
         graph.get(v).add(new Edge(u, v, latency, 0));
     }
 
-    public void addEdge(int u, int v, int latency, int bandwidth) {
+    protected final void addEdge(int u, int v, int latency, int bandwidth) {
         graph.get(v).add(new Edge(u, v, latency, bandwidth));
     }
 
-    void calcPath() {
+    public final void calcPath() {
         // Dijkstra
         class State implements Comparable<State> {
             final int nodeID;
@@ -79,7 +80,7 @@ public class Network {
         }
     }
 
-    public void sendMessage(int from, int to, EventParam data, EventHandler receivingAction, int size) {
+    final void sendMessage(int from, int to, EventHandler receivingAction, EventParam data, int size) {
         if(limitBandwidth) {
             EventDriver.insertEvent(
                     new Event(
@@ -117,6 +118,8 @@ public class Network {
             EventDriver.insertEvent(new Event(receivingTime, nodes[to], receivingAction, data));
         }
     }
+
+    public abstract void configConnection();
 }
 
 class Edge {
