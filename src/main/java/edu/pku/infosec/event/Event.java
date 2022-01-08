@@ -20,7 +20,8 @@ public class Event implements Comparable<Event> {
     }
 
     public void happen() {
-        if(responsibleNode.getNextIdleTime() > timeToHappen) {
+        // client has an id of -1
+        if(responsibleNode.getId() != -1 && responsibleNode.getNextIdleTime() > timeToHappen) {
             timeToHappen = responsibleNode.getNextIdleTime();
             EventDriver.insertEvent(this);
         }

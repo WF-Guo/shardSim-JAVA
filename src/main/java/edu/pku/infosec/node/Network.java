@@ -11,14 +11,18 @@ import java.util.PriorityQueue;
 
 public abstract class Network {
     private final Node[] nodes;
+    private final Node externalNode;
     private final List<List<Edge>> graph;
     private final int[][] dist;
     private final Edge[][] nextEdge;
     private final boolean limitBandwidth;
+    private final long externalLatency;
 
-    protected Network(int size, boolean limitBandwidth) {
+    protected Network(int size, boolean limitBandwidth, long externalLatency) {
         this.limitBandwidth = limitBandwidth;
+        this.externalLatency = externalLatency;
         nodes = new Node[size];
+        externalNode = new Node(-1, this);
         for(int i = 0; i < nodes.length; i++) {
             nodes[i] = new Node(i,this);
         }
@@ -119,7 +123,15 @@ public abstract class Network {
         }
     }
 
-    public abstract void configConnection();
+   final void sendIn(int nodeID, EventHandler receivingAction, EventParam data) {
+       long receivingTime = EventDriver.getCurrentTime() + externalLatency;
+        EventDriver.insertEvent(new Event(receivingTime, nodes[nodeID], receivingAction, data));
+    }
+
+    final void sendOut(EventHandler receivingAction, EventParam data) {
+        long receivingTime = EventDriver.getCurrentTime() + externalLatency;
+        EventDriver.insertEvent(new Event(receivingTime, externalNode, receivingAction, data));
+    }
 }
 
 class Edge {

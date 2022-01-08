@@ -1,17 +1,35 @@
 package edu.pku.infosec;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import edu.pku.infosec.customized.MyNetwork;
 import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.node.Network;
 
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Properties;
+
 public class Main {
     public static void main(String[] args) {
-        // Todo: Read config from file
-        Network network = new MyNetwork(5, true);
-        network.configConnection();
+        if(args.length != 1) {
+            System.err.println("Usage: java --Xms32000m -Xmx48000m -jar shardSim.jar <ConfigFile>");
+            return;
+        }
+        Properties properties = new Properties();
+        try {
+            properties.load(new FileReader(args[0]));
+        } catch (IOException ioException) {
+            System.err.println("Fail to load config");
+            return;
+        }
+        int nodeNum = Integer.getInteger(properties.getProperty("NodeNumber"));
+        boolean limitBandwidth = Boolean.getBoolean(properties.getProperty("limitBandwidth"));
+        int externalLatency = Integer.getInteger(properties.getProperty("externalLatency"));
+        JSONObject otherConfig = JSON.parseObject(properties.getProperty("other"));
+        Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);
         network.calcPath();
-        // Todo: Set node info
-        // Todo: Insert tx coming event
+        // Todo: Generate transactions
         EventDriver.start();
     }
 }
