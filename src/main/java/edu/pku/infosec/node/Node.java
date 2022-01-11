@@ -6,7 +6,7 @@ import edu.pku.infosec.event.EventHandler;
 import edu.pku.infosec.event.EventParam;
 
 public class Node {
-    private long nextIdleTime;
+    private double nextIdleTime;
     private final Network network;
     private final int id;
 
@@ -32,11 +32,11 @@ public class Node {
         network.sendIn(id,receivingAction, data);
     }
 
-    public long getNextIdleTime() {
+    public double getNextIdleTime() {
         return nextIdleTime;
     }
 
-    public void stayBusy(long busyTime, EventHandler nextAction, EventParam param) {
+    public void stayBusy(double busyTime, EventHandler nextAction, EventParam param) {
         nextIdleTime = EventDriver.getCurrentTime() + busyTime;
         EventDriver.insertEvent(new Event(nextIdleTime, this, nextAction, param));
     }

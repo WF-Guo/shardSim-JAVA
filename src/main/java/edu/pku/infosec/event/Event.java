@@ -3,19 +3,19 @@ package edu.pku.infosec.event;
 import edu.pku.infosec.node.Node;
 
 public class Event implements Comparable<Event> {
-    private long timeToHappen;
+    private double timeToHappen;
     private final Node responsibleNode;
     private final EventHandler handlerFunc;
     private final EventParam params;
 
-    public Event(long timeToHappen, Node responsibleNode, EventHandler handlerFunc, EventParam params) {
+    public Event(double timeToHappen, Node responsibleNode, EventHandler handlerFunc, EventParam params) {
         this.timeToHappen = timeToHappen;
         this.responsibleNode = responsibleNode;
         this.handlerFunc = handlerFunc;
         this.params = params;
     }
 
-    public long getTimeToHappen() {
+    public double getTimeToHappen() {
         return timeToHappen;
     }
 
@@ -31,6 +31,6 @@ public class Event implements Comparable<Event> {
 
     @Override
     public int compareTo(Event o) {
-        return Long.compare(timeToHappen, o.timeToHappen);
+        return Double.compare(timeToHappen, o.timeToHappen);
     }
 }

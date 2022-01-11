@@ -4,9 +4,9 @@ import java.util.PriorityQueue;
 
 public class EventDriver {
     private static final PriorityQueue<Event> eventQueue = new PriorityQueue<>();
-    private static long currentTime;
+    private static double currentTime;
 
-    public static long getCurrentTime() {
+    public static double getCurrentTime() {
         return currentTime;
     }
 

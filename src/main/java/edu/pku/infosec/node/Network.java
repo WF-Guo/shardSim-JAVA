@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 public abstract class Network {
-    private final Node[] nodes;
     public final Node externalNode;
+    private final Node[] nodes;
     private final List<List<Edge>> graph;
     private final int[][] dist;
     private final Edge[][] nextEdge;
@@ -23,8 +23,8 @@ public abstract class Network {
         this.externalLatency = externalLatency;
         nodes = new Node[size];
         externalNode = new Node(-1, this);
-        for(int i = 0; i < nodes.length; i++) {
-            nodes[i] = new Node(i,this);
+        for (int i = 0; i < nodes.length; i++) {
+            nodes[i] = new Node(i, this);
         }
         graph = new ArrayList<>(size);
         dist = new int[size][size];
@@ -85,7 +85,7 @@ public abstract class Network {
     }
 
     final void sendMessage(int from, int to, EventHandler receivingAction, EventParam data, int size) {
-        if(limitBandwidth) {
+        if (limitBandwidth) {
             EventDriver.insertEvent(
                     new Event(
                             EventDriver.getCurrentTime(),
@@ -94,19 +94,18 @@ public abstract class Network {
                                 @Override
                                 public void run(Node currentNode, EventParam param) {
                                     MessageRelayParam messageRelayParam = (MessageRelayParam) param;
-                                    if(currentNode.getId() == to)
+                                    if (currentNode.getId() == to)
                                         receivingAction.run(currentNode, data);
                                     else {
                                         Edge e = nextEdge[currentNode.getId()][to];
-                                        if(EventDriver.getCurrentTime() < e.nextIdleTime) {
+                                        if (EventDriver.getCurrentTime() < e.nextIdleTime) {
                                             // wait for idle bandwidth
                                             EventDriver.insertEvent(
                                                     new Event(e.nextIdleTime, currentNode, this, messageRelayParam)
                                             );
-                                        }
-                                        else {
-                                            e.nextIdleTime = EventDriver.getCurrentTime() + size / e.bandwidth;
-                                            long receivingTime = EventDriver.getCurrentTime() + e.latency;
+                                        } else {
+                                            e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
+                                            double receivingTime = EventDriver.getCurrentTime() + e.latency;
                                             EventDriver.insertEvent(new Event(receivingTime, nodes[e.v], this,
                                                     messageRelayParam)); // Relay!
                                         }
@@ -116,20 +115,19 @@ public abstract class Network {
                             new MessageRelayParam(receivingAction, data)
                     )
             );
-        }
-        else {
-            long receivingTime = EventDriver.getCurrentTime() + dist[from][to];
+        } else {
+            double receivingTime = EventDriver.getCurrentTime() + dist[from][to];
             EventDriver.insertEvent(new Event(receivingTime, nodes[to], receivingAction, data));
         }
     }
 
-   final void sendIn(int nodeID, EventHandler receivingAction, EventParam data) {
-       long receivingTime = EventDriver.getCurrentTime() + externalLatency;
+    final void sendIn(int nodeID, EventHandler receivingAction, EventParam data) {
+        double receivingTime = EventDriver.getCurrentTime() + externalLatency;
         EventDriver.insertEvent(new Event(receivingTime, nodes[nodeID], receivingAction, data));
     }
 
     final void sendOut(EventHandler receivingAction, EventParam data) {
-        long receivingTime = EventDriver.getCurrentTime() + externalLatency;
+        double receivingTime = EventDriver.getCurrentTime() + externalLatency;
         EventDriver.insertEvent(new Event(receivingTime, externalNode, receivingAction, data));
     }
 }
@@ -139,7 +137,7 @@ class Edge {
     public final int v;
     public final int latency;
     public final int bandwidth;
-    public long nextIdleTime;
+    public double nextIdleTime;
 
     public Edge(int u, int v, int latency, int bandwidth) {
         this.u = u;

@@ -7,8 +7,8 @@ import java.util.PriorityQueue;
 import java.util.Random;
 
 public class TxStat {
-    private static final HashMap<Long, Long> submitTime = new HashMap<>();
-    private static final HashMap<Long, Long> commitTime = new HashMap<>();
+    private static final HashMap<Long, Double> submitTime = new HashMap<>();
+    private static final HashMap<Long, Double> commitTime = new HashMap<>();
     private static final PriorityQueue<ShuffledTxInput> utxoSet = new PriorityQueue<>();
 
     public static void submit(TxInfo tx) {
@@ -28,10 +28,11 @@ public class TxStat {
 
     public static double averageLatency() {
         long n = 0;
-        long latencySum = 0;
+        double latencySum = 0;
         for (long tx : submitTime.keySet()) {
             if (commitTime.containsKey(tx)) {
                 latencySum += commitTime.get(tx);
+                latencySum -= submitTime.get(tx);
                 n++;
             }
         }
@@ -40,7 +41,7 @@ public class TxStat {
 
     public static double throughput() {
         long n = commitTime.size();
-        long time = EventDriver.getCurrentTime();
+        double time = EventDriver.getCurrentTime();
         return time / n;
     }
 
