@@ -11,7 +11,7 @@ import java.util.PriorityQueue;
 
 public abstract class Network {
     private final Node[] nodes;
-    private final Node externalNode;
+    public final Node externalNode;
     private final List<List<Edge>> graph;
     private final int[][] dist;
     private final Edge[][] nextEdge;

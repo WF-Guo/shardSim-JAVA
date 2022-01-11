@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import edu.pku.infosec.customized.MyNetwork;
 import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.node.Network;
+import edu.pku.infosec.transaction.TxGenScheduler;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -26,10 +27,10 @@ public class Main {
         int nodeNum = Integer.getInteger(properties.getProperty("NodeNumber"));
         boolean limitBandwidth = Boolean.getBoolean(properties.getProperty("limitBandwidth"));
         int externalLatency = Integer.getInteger(properties.getProperty("externalLatency"));
-        JSONObject otherConfig = JSON.parseObject(properties.getProperty("other"));
+        JSONObject otherConfig = JSON.parseObject(properties.getProperty("model"));
         Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);
         network.calcPath();
-        // Todo: Generate transactions
+        TxGenScheduler.generate(network.externalNode, JSON.parseObject(properties.getProperty("transactions")));
         EventDriver.start();
     }
 }
