@@ -70,7 +70,7 @@ public class TxStat {
     public static double throughput() {
         long n = commitTime.size();
         double time = EventDriver.getCurrentTime();
-        return time / n;
+        return n / time;
     }
 
 }
