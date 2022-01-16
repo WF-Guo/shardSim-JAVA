@@ -25,12 +25,15 @@ public class TxStat {
     }
 
     public static void commit(TxInfo tx) {
+        if(commitTime.containsKey(tx.id))
+            return; // Repeated
         commitTime.put(tx.id, EventDriver.getCurrentTime());
         for (int i = 0; i < tx.outputNum; i++) {
             utxoSet.add(new TxInput(tx.id, i));
         }
         if(conflictingTx.containsKey(tx.id)) {
             TxInfo attack = conflictingTx.get(tx.id);
+            assert !commitTime.containsKey(attack.id): "Conflicting transactions are both committed.";
             for (TxInput input: attack.inputs)
                 if(!tx.inputs.contains(input))
                     utxoSet.add(input);
