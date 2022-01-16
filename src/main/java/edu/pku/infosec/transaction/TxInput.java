@@ -8,4 +8,9 @@ public class TxInput {
         this.tid = tid;
         this.n = n;
     }
+
+    @Override
+    public String toString() {
+        return tid + ":" + n;
+    }
 }
