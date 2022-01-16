@@ -20,7 +20,7 @@ public class Node {
     }
 
     public void sendMessage(int to, EventHandler receivingAction, EventParam data, int size) {
-        if(id != -1)
+        if(id == -1)
             throw new RuntimeException("sendMessage() is for nodes");
         network.sendMessage(id, to, receivingAction, data, size);
     }
@@ -30,7 +30,7 @@ public class Node {
     }
 
     public void sendIn(int id, EventHandler receivingAction, EventParam data) {
-        if(id != -1)
+        if(this.id != -1)
             throw new RuntimeException("sendIn() is for client");
         network.sendIn(id,receivingAction, data);
     }
