@@ -3,7 +3,6 @@ package edu.pku.infosec.customized;
 import edu.pku.infosec.event.EventHandler;
 import edu.pku.infosec.event.EventParam;
 import edu.pku.infosec.node.Node;
-import edu.pku.infosec.transaction.TxInfo;
 
 public class TxProcessing implements EventHandler {
     @Override
@@ -24,11 +23,9 @@ public class TxProcessing implements EventHandler {
            to send message to a node on an external node, or use currentNode.stayBusy to delay that sending.
            Note that task conflict is ignored on an external node, so stayBusy won't get it really busy.
         7. If data structures is required for processing transactions, it is recommended that you define them as
-           static fields in a class you define by yourself.
+           static fields in ModelData.
         8. If you need a coinbase tx, just create a transaction with no input and commit it, it will not be
            counted in throughput and latency
          */
-        TxInfo txInfo = (TxInfo) param;
-        System.out.println(txInfo.id + " has been received!");
     }
 }
