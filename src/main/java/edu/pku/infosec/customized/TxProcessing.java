@@ -27,5 +27,6 @@ public class TxProcessing implements EventHandler {
         8. If you need a coinbase tx, just create a transaction with no input and commit it, it will not be
            counted in throughput and latency
          */
+        currentNode.stayBusy(300, new AfterValidation(), param);
     }
 }
