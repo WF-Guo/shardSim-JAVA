@@ -43,7 +43,8 @@ public class TxStat {
         }
         if(conflictingTx.containsKey(tx.id)) {
             TxInfo attack = conflictingTx.get(tx.id);
-            assert !commitTime.containsKey(attack.id): "Conflicting transactions are both committed.";
+            if(commitTime.containsKey(attack.id))
+                throw new RuntimeException("Conflicting transactions are both committed.");
             for (TxInput input: attack.inputs)
                 if(!tx.inputs.contains(input))
                     utxoSet.add(input);

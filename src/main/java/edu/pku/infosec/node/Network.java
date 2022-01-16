@@ -37,7 +37,8 @@ public abstract class Network {
     }
 
     protected final void addEdge(int u, int v, int latency) {
-        assert !limitBandwidth : "Bandwidth is required in this network.";
+        if(limitBandwidth)
+            throw new RuntimeException("Bandwidth is required in this network.");
         graph.get(v).add(new Edge(u, v, latency, 0));
     }
 

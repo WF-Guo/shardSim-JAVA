@@ -8,7 +8,8 @@ public class SplayTree {
             root = new TreeNode(data);
         else {
             root = root.splayUpKthInSubtree(root.subTreeSize);
-            assert root.ch[1] == null;
+            if (root.ch[1] != null)
+                throw new RuntimeException("splay error");
             root.ch[1] = new TreeNode(data);
             root.maintainSize();
         }
@@ -64,7 +65,6 @@ class TreeNode {
      */
     TreeNode rotate(int dir) {
         TreeNode p = this.ch[dir ^ 1];
-        assert p != null;
         this.ch[dir ^ 1] = p.ch[dir];
         p.ch[dir] = this;
         this.maintainSize();
