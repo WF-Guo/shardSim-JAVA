@@ -13,4 +13,20 @@ public class TxInput {
     public String toString() {
         return tid + ":" + n;
     }
+
+    @Override
+    public int hashCode() {
+        return (int)(tid * 8 + n);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        TxInput input = (TxInput) o;
+
+        if (tid != input.tid) return false;
+        return n == input.n;
+    }
 }
