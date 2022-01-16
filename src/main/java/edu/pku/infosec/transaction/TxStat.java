@@ -11,15 +11,6 @@ public class TxStat {
     private static final RandomQueue<TxInput> utxoSet = new RandomQueue<>();
     private static final HashMap<Long, TxInfo> conflictingTx = new HashMap<>();
 
-    public static void init() {
-        // Initializing utxo set
-        for(int i = 0; i < 10000; i++) {
-            TxInfo coinbase = new TxInfo();
-            coinbase.outputNum = 1;
-            commit(coinbase);
-        }
-    }
-
     public static void markConflict(TxInfo tx1, TxInfo tx2) {
         conflictingTx.put(tx1.id, tx2);
         conflictingTx.put(tx2.id, tx1);

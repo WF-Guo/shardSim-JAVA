@@ -2,10 +2,13 @@ package edu.pku.infosec;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.customized.MyNetwork;
 import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.node.Network;
 import edu.pku.infosec.transaction.TxGenScheduler;
+import edu.pku.infosec.transaction.TxInfo;
+import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
 
 import java.io.FileReader;
@@ -31,7 +34,13 @@ public class Main {
         JSONObject otherConfig = JSON.parseObject(properties.getProperty("model"));
         Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);
         network.calcPath();
-        TxStat.init();
+        // Initializing utxo set
+        for(int i = 0; i < 10000; i++) {
+            TxInfo coinbase = new TxInfo();
+            coinbase.outputNum = 1;
+            TxStat.commit(coinbase);
+            ModelData.addInitUTXO(new TxInput(coinbase.id, 0));
+        }
         TxGenScheduler.generate(network.externalNode, JSON.parseObject(properties.getProperty("transactions")));
         EventDriver.start();
         System.out.println("Throughput:" + TxStat.throughput());
