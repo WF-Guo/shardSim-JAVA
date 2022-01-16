@@ -12,7 +12,12 @@ public class TxStat {
     private static final HashMap<Long, TxInfo> conflictingTx = new HashMap<>();
 
     static {
-
+        // Initializing utxo set
+        for(int i = 0; i < 10000; i++) {
+            TxInfo coinbase = new TxInfo();
+            coinbase.outputNum = 1;
+            commit(coinbase);
+        }
     }
 
     public static void markConflict(TxInfo tx1, TxInfo tx2) {
