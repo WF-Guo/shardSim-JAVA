@@ -25,7 +25,7 @@ public class Main {
             System.err.println("Fail to load config");
             return;
         }
-        int nodeNum = Integer.getInteger(properties.getProperty("NodeNumber"));
+        int nodeNum = Integer.getInteger(properties.getProperty("nodeNumber"));
         boolean limitBandwidth = Boolean.getBoolean(properties.getProperty("limitBandwidth"));
         int externalLatency = Integer.getInteger(properties.getProperty("externalLatency"));
         JSONObject otherConfig = JSON.parseObject(properties.getProperty("model"));
