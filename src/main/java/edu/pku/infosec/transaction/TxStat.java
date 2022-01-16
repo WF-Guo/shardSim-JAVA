@@ -11,7 +11,7 @@ public class TxStat {
     private static final RandomQueue<TxInput> utxoSet = new RandomQueue<>();
     private static final HashMap<Long, TxInfo> conflictingTx = new HashMap<>();
 
-    static {
+    public static void init() {
         // Initializing utxo set
         for(int i = 0; i < 10000; i++) {
             TxInfo coinbase = new TxInfo();

@@ -25,12 +25,13 @@ public class Main {
             System.err.println("Fail to load config");
             return;
         }
-        int nodeNum = Integer.getInteger(properties.getProperty("nodeNumber"));
-        boolean limitBandwidth = Boolean.getBoolean(properties.getProperty("limitBandwidth"));
-        int externalLatency = Integer.getInteger(properties.getProperty("externalLatency"));
+        int nodeNum = Integer.parseInt(properties.getProperty("nodeNumber"));
+        boolean limitBandwidth = Boolean.parseBoolean(properties.getProperty("limitBandwidth"));
+        int externalLatency = Integer.parseInt(properties.getProperty("externalLatency"));
         JSONObject otherConfig = JSON.parseObject(properties.getProperty("model"));
         Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);
         network.calcPath();
+        TxStat.init();
         TxGenScheduler.generate(network.externalNode, JSON.parseObject(properties.getProperty("transactions")));
         EventDriver.start();
         System.out.println("Throughput:" + TxStat.throughput());

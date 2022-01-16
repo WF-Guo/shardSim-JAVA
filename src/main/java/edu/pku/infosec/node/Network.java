@@ -30,7 +30,7 @@ public abstract class Network {
         dist = new int[size][size];
         nextEdge = new Edge[size][size];
         for (int i = 0; i < size; i++) {
-            graph.set(i, new ArrayList<>());
+            graph.add(new ArrayList<>());
             for (int j = 0; j < size; j++)
                 dist[i][j] = Integer.MAX_VALUE;
         }
