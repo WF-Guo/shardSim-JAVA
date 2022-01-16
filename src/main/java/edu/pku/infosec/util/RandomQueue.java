@@ -6,11 +6,11 @@ public class RandomQueue<T> {
     private final SplayTree splayTree = new SplayTree();
     private static final Random random = new Random();
 
-    public void push(T data) {
+    public void add(T data) {
         splayTree.pushBack(data);
     }
 
-    public T pop() {
+    public T remove() {
         return (T) splayTree.removeKth(random.nextInt(splayTree.size()) + 1);
     }
 

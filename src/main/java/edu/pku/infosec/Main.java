@@ -6,6 +6,7 @@ import edu.pku.infosec.customized.MyNetwork;
 import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.node.Network;
 import edu.pku.infosec.transaction.TxGenScheduler;
+import edu.pku.infosec.transaction.TxStat;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -32,5 +33,7 @@ public class Main {
         network.calcPath();
         TxGenScheduler.generate(network.externalNode, JSON.parseObject(properties.getProperty("transactions")));
         EventDriver.start();
+        System.out.println("Throughput:" + TxStat.throughput());
+        System.out.println("Latency:" + TxStat.averageLatency());
     }
 }

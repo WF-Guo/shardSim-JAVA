@@ -1,15 +1,24 @@
 package edu.pku.infosec.transaction;
 
 import edu.pku.infosec.event.EventDriver;
+import edu.pku.infosec.util.RandomQueue;
 
 import java.util.HashMap;
-import java.util.PriorityQueue;
-import java.util.Random;
 
 public class TxStat {
     private static final HashMap<Long, Double> submitTime = new HashMap<>();
     private static final HashMap<Long, Double> commitTime = new HashMap<>();
-    private static final PriorityQueue<ShuffledTxInput> utxoSet = new PriorityQueue<>();
+    private static final RandomQueue<TxInput> utxoSet = new RandomQueue<>();
+    private static final HashMap<Long, TxInfo> conflictingTx = new HashMap<>();
+
+    public static void markConflict(TxInfo tx1, TxInfo tx2) {
+        conflictingTx.put(tx1.id, tx2);
+        conflictingTx.put(tx2.id, tx1);
+    }
+
+    public static int utxoSize() {
+        return utxoSet.size();
+    }
 
     public static void submit(TxInfo tx) {
         submitTime.put(tx.id, EventDriver.getCurrentTime());
@@ -18,12 +27,18 @@ public class TxStat {
     public static void commit(TxInfo tx) {
         commitTime.put(tx.id, EventDriver.getCurrentTime());
         for (int i = 0; i < tx.outputNum; i++) {
-            utxoSet.add(new ShuffledTxInput(new TxInput(tx.id, i)));
+            utxoSet.add(new TxInput(tx.id, i));
+        }
+        if(conflictingTx.containsKey(tx.id)) {
+            TxInfo attack = conflictingTx.get(tx.id);
+            for (TxInput input: attack.inputs)
+                if(!tx.inputs.contains(input))
+                    utxoSet.add(input);
         }
     }
 
     public static TxInput getRandomUTXO() {
-        return utxoSet.remove().input;
+        return utxoSet.remove();
     }
 
     public static double averageLatency() {
@@ -45,20 +60,4 @@ public class TxStat {
         return time / n;
     }
 
-}
-
-class ShuffledTxInput implements Comparable<ShuffledTxInput> {
-    private static final Random random = new Random();
-    private final int weight;
-    TxInput input;
-
-    public ShuffledTxInput(TxInput input) {
-        this.weight = random.nextInt();
-        this.input = input;
-    }
-
-    @Override
-    public int compareTo(ShuffledTxInput o) {
-        return Integer.compare(weight, o.weight);
-    }
 }
