@@ -25,6 +25,8 @@ public class TxProcessing implements EventHandler {
            Note that task conflict is ignored on an external node, so stayBusy won't get it really busy.
         7. If data structures is required for processing transactions, it is recommended that you define them as
            static fields in a class you define by yourself.
+        8. If you need a coinbase tx, just create a transaction with no input and commit it, it will not be
+           counted in throughput and latency
          */
         TxInfo txInfo = (TxInfo) param;
         System.out.println(txInfo.id + " has been received!");

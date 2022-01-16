@@ -7,8 +7,6 @@ import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.event.VoidEventParam;
 import edu.pku.infosec.node.Node;
 
-import java.util.Random;
-
 public class TxGenScheduler {
     public static void generate(Node client, JSONObject txConfig) {
         int number = txConfig.getInteger("number");

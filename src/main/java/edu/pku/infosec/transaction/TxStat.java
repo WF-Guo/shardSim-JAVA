@@ -11,6 +11,10 @@ public class TxStat {
     private static final RandomQueue<TxInput> utxoSet = new RandomQueue<>();
     private static final HashMap<Long, TxInfo> conflictingTx = new HashMap<>();
 
+    static {
+
+    }
+
     public static void markConflict(TxInfo tx1, TxInfo tx2) {
         conflictingTx.put(tx1.id, tx2);
         conflictingTx.put(tx2.id, tx1);
@@ -27,7 +31,8 @@ public class TxStat {
     public static void commit(TxInfo tx) {
         if(commitTime.containsKey(tx.id))
             return; // Repeated
-        commitTime.put(tx.id, EventDriver.getCurrentTime());
+        if(tx.inputs.size() > 0) // not coinbase
+            commitTime.put(tx.id, EventDriver.getCurrentTime());
         for (int i = 0; i < tx.outputNum; i++) {
             utxoSet.add(new TxInput(tx.id, i));
         }
