@@ -11,7 +11,7 @@ public class TxProcessing implements EventHandler {
         Define your transaction processing rule here
         You can use the following to describe your model behaviour:
         1. currentNode.getId() returns the id of local node, which may be useful
-        2. call TransactionStat.commit(tid) after it is safe for user to confirm that transaction
+        2. call TxStat.commit(tid) after it is safe for user to confirm that transaction
         3. Implement EventHandler and corresponding EventParam to define a new event type
         4. If you want local node to simulate a time-consuming task,
            call currentNode.stayBusy(time,eventHandler,eventParam) to lock the node and schedule what to do next.
