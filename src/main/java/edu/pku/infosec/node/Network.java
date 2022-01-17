@@ -37,12 +37,14 @@ public abstract class Network {
     }
 
     protected final void addEdge(int u, int v, int latency) {
-        if(limitBandwidth)
+        if (limitBandwidth)
             throw new RuntimeException("Bandwidth is required in this network.");
-        graph.get(v).add(new Edge(u, v, latency, 0));
+        addEdge(u, v, latency, 0);
     }
 
     protected final void addEdge(int u, int v, int latency, int bandwidth) {
+        if (u < 0 || v < 0 || u >= nodes.length || v >= nodes.length)
+            throw new RuntimeException("Node index out of bounds of length " + nodes.length);
         graph.get(v).add(new Edge(u, v, latency, bandwidth));
     }
 
