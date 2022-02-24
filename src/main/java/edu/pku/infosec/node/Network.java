@@ -87,7 +87,7 @@ public abstract class Network {
         }
     }
 
-    final void sendMessage(int from, int to, EventHandler receivingAction, EventParam data, int size) {
+    protected final void sendMessage(int from, int to, EventHandler receivingAction, EventParam data, int size) {
         if (limitBandwidth) {
             EventDriver.insertEvent(
                     new Event(

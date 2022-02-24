@@ -4,6 +4,7 @@ import edu.pku.infosec.event.EventParam;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class TxInfo extends EventParam {
     static long txCnt = 0;
@@ -14,5 +15,10 @@ public class TxInfo extends EventParam {
     public TxInfo() {
         this.id = txCnt++;
         this.inputs = new ArrayList<>();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, inputs, outputNum);
     }
 }

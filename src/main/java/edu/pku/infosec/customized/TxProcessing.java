@@ -2,12 +2,15 @@ package edu.pku.infosec.customized;
 
 import edu.pku.infosec.event.EventHandler;
 import edu.pku.infosec.event.EventParam;
+import edu.pku.infosec.event.VoidEventParam;
 import edu.pku.infosec.node.Node;
+import edu.pku.infosec.transaction.TxInfo;
+import edu.pku.infosec.transaction.TxInput;
+import edu.pku.infosec.transaction.TxStat;
 
-public class TxProcessing implements EventHandler {
-    @Override
-    public void run(Node currentNode, EventParam param) {
-        /*
+import java.util.*;
+
+/*
         Define your transaction processing rule here
         You can use the following to describe your model behaviour:
         1. currentNode.getId() returns the id of local node, which may be useful
@@ -27,5 +30,389 @@ public class TxProcessing implements EventHandler {
         8. If you need a coinbase tx, just create a transaction with no input and commit it, it will not be
            counted in throughput and latency
          */
+
+// assume all nodes are honest. TODO: add node type where it can be malicious
+public class TxProcessing implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        //the receiving node forwards the transaction
+        TxInfo txinfo = (TxInfo) param;
+        Map<Integer, ArrayList<TxInput>> shardsMapping = new HashMap<>();
+        for (TxInput input : txinfo.inputs) {
+            int responsibleShard = (int)input.tid % ModelData.shardNum;
+            if (!shardsMapping.containsKey(responsibleShard)) {
+                shardsMapping.put(responsibleShard, new ArrayList<>());
+            }
+            ArrayList<TxInput> tmp = shardsMapping.get(responsibleShard);
+            tmp.add(input);
+            shardsMapping.put(responsibleShard, tmp);
+        }
+        int outputShard = (int)txinfo.id % ModelData.shardNum;
+        if (!shardsMapping.containsKey(outputShard)) {
+            shardsMapping.put(outputShard, new ArrayList<>()); // but no need to verify
+        }
+
+        ModelData.collectedVerification.put(txinfo.id, new ArrayList<>());
+
+        Set<Integer> shardsSet = shardsMapping.keySet();
+        Iterator<Integer> it = shardsSet.iterator();
+        while (it.hasNext()) {
+            int firstShard = it.next();
+            List<TxInput> inputsToVerify = new ArrayList<>(shardsMapping.get(firstShard));
+            if (it.hasNext()) {
+                int secondShard = it.next();
+                inputsToVerify.addAll(shardsMapping.get(secondShard));
+                // the size is set to txinfo(x + 16) + inputNum(4) + inputNum * input(12)
+                // TODO: we don't know how many bytes does a transaction has
+                currentNode.sendToOverlapLeader(firstShard, secondShard, new StartConsensus(),
+                        new VerificationInfo(txinfo, inputsToVerify, firstShard, secondShard),
+                        txinfo.inputs.size() * 48 + txinfo.outputNum * 8 + 20 + inputsToVerify.size() * 12);
+            }
+            else {
+                currentNode.sendToOverlapLeader(firstShard, firstShard, new StartConsensus(),
+                        new VerificationInfo(txinfo, inputsToVerify, firstShard, firstShard),
+                        txinfo.inputs.size() * 48 + txinfo.outputNum * 8 + 20 + inputsToVerify.size() * 12);
+            }
+        }
+    }
+}
+
+class VerificationInfo extends EventParam {
+    public final TxInfo tx;
+    public final List<TxInput> inputs;
+    public final int firstShard;
+    public final int secondShard;
+
+    public VerificationInfo(TxInfo txinfo, List<TxInput> inputs, int f, int s) {
+        this.tx = txinfo;
+        this.inputs = inputs;
+        this.firstShard = f;
+        this.secondShard = s;
+    }
+}
+
+// will only be called by overlapshard leader TODO: shall we replace the star network and use tree-style organization?
+class StartConsensus implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationInfo consensusParam = (VerificationInfo) param;
+        currentNode.signatureCnt.put(consensusParam.tx.id, 0);
+        currentNode.passCnt.put(consensusParam.tx.id, 0);
+        currentNode.sendToOverlapShard(consensusParam.firstShard, consensusParam.secondShard, new Verify(), param,
+                consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8
+                        + 20 + consensusParam.inputs.size() * 12);
+    }
+}
+
+class Verify implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationInfo consensusParam = (VerificationInfo) param;
+        int verifyCnt = 0;
+        for (TxInput input : consensusParam.inputs) {
+            verifyCnt++;
+            if (!ModelData.verifyUTXO(input, consensusParam.tx.id)) {
+                currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new VerificationFail(), param);
+                return;
+            }
+        }
+        currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new VerificationPass(), param);
+    }
+}
+
+class VerificationResult extends EventParam {
+    public final VerificationInfo vi;
+    public final boolean pass;
+
+    public VerificationResult(boolean pass, VerificationInfo vi) {
+        this.pass = pass;
+        this.vi = vi;
+    }
+}
+
+class VerificationPass implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationInfo consensusParam = (VerificationInfo) param;
+        currentNode.sendToSelfOverlapLeader(new Collect(),
+                new VerificationResult(true, consensusParam),
+                33 + consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8
+                        + 20 + consensusParam.inputs.size() * 12);
+    }
+}
+
+class VerificationFail implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationInfo consensusParam = (VerificationInfo) param;
+        currentNode.sendToSelfOverlapLeader(new Collect(),
+                new VerificationResult(false, consensusParam),
+                33 + consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8
+                        + 20 + consensusParam.inputs.size() * 12);
+    }
+}
+
+// only called by the leader
+class Collect implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationResult result = (VerificationResult) param;
+        int newSignatureCnt = currentNode.signatureCnt.get(result.vi.tx.id) + 1;
+        currentNode.signatureCnt.put(result.vi.tx.id, newSignatureCnt);
+        if (result.pass) {
+            int newPassCnt = currentNode.passCnt.get(result.vi.tx.id) + 1;
+            int threshold = ModelData.overlapShards.get(ModelData.originalShardIndex
+                    .get(currentNode.getId())).size() * 2 / 3;
+            if (newPassCnt > threshold) {
+                currentNode.passCnt.remove(result.vi.tx.id);
+                currentNode.signatureCnt.remove(result.vi.tx.id);
+
+                // send to all related shards
+                Set<Integer> involvedShards = new HashSet<>();
+                for (TxInput input : result.vi.tx.inputs) {
+                    int responsibleShard = (int)input.tid % ModelData.shardNum;
+                    involvedShards.add(responsibleShard);
+                }
+                int outputShard = (int)result.vi.tx.id % ModelData.shardNum;
+                involvedShards.add(outputShard);
+                for (int shard : involvedShards) {
+                    currentNode.sendToOriginalShard(shard, new CheckCommit(), param,
+                            33 + result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8
+                                    + 20 + result.vi.inputs.size() * 12);
+                }
+                return;
+            }
+            currentNode.passCnt.put(result.vi.tx.id, newPassCnt);
+        }
+        // consensus failed when every node has voted yet not enough passes are collected
+        if (newSignatureCnt == ModelData.overlapShards.get(ModelData.originalShardIndex
+                .get(currentNode.getId())).size()) {
+            currentNode.passCnt.remove(result.vi.tx.id);
+            currentNode.signatureCnt.remove(result.vi.tx.id);
+
+            // send to all related shards
+            Set<Integer> involvedShards = new HashSet<>();
+            for (TxInput input : result.vi.tx.inputs) {
+                int responsibleShard = (int)input.tid % ModelData.shardNum;
+                involvedShards.add(responsibleShard);
+            }
+            int outputShard = (int)result.vi.tx.id % ModelData.shardNum;
+            involvedShards.add(outputShard);
+            for (int shard : involvedShards) {
+                currentNode.sendToOriginalShard(shard, new CheckCommit(), new VerificationResult(false, result.vi),
+                        33 + result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8
+                                + 20 + result.vi.inputs.size() * 12);
+            }
+        }
+    }
+}
+
+class CheckCommit implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationResult result = (VerificationResult) param;
+
+        if (!ModelData.collectedVerification.containsKey(result.vi.tx.id)) // already commited or aborted
+            return;
+
+        // TODO: how can we count a transaction as commited by the system?
+        if (result.pass) {
+            // first check again
+            shardPair nodeOriginalShards = ModelData.originalShardIndex.get(currentNode.getId());
+            int verifyCnt = 0;
+            for (TxInput input : result.vi.inputs) {
+                int responsibleShard = (int)input.tid % ModelData.shardNum;
+                if (nodeOriginalShards.first == responsibleShard || nodeOriginalShards.second == responsibleShard) {
+                    verifyCnt++;
+                    if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
+                        currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new Alert(), param);
+                        return;
+                    }
+                }
+            }
+            currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new CheckCommitPass(), param);
+        }
+        else {
+            // abort situation 1
+            ModelData.collectedVerification.remove(result.vi.tx.id);
+            for (TxInput input : result.vi.tx.inputs) {
+                ModelData.unlockUTXO(input, result.vi.tx.id);
+            }
+        }
+    }
+}
+
+class CheckCommitPass implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationResult result = (VerificationResult) param;
+
+        // collectedVerification is initialied in TxProcessing, removed in CheckCommit/CheckCommitPass
+        if (ModelData.collectedVerification.containsKey(result.vi.tx.id)) {
+            ModelData.collectedVerification.get(result.vi.tx.id).addAll(result.vi.inputs);
+            if (ModelData.collectedVerification.get(result.vi.tx.id).size() == result.vi.tx.inputs.size()) {
+                ModelData.collectedVerification.remove(result.vi.tx.id);
+                for (TxInput input : result.vi.tx.inputs) {
+                    ModelData.useUTXO(input);
+                }
+                for (int i = 0; i < result.vi.tx.outputNum; ++i) {
+                    ModelData.addUTXO(new TxInput(result.vi.tx.id, i));
+                }
+                currentNode.sendOut(new Commit(), param);
+            }
+        }
+    }
+}
+
+class Commit implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        // TODO: May be rolled back, but the interface is not implemented
+        TxStat.commit(((VerificationResult)param).vi.tx);
+    }
+}
+
+class RecheckInfo extends EventParam {
+    public final TxInfo tx;
+    public final TxInput input;
+    public final int leader;
+
+    public RecheckInfo(TxInfo txinfo, TxInput input, int leader) {
+        this.tx = txinfo;
+        this.input = input;
+        this.leader = leader;
+    }
+}
+
+class Alert implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationResult result = (VerificationResult) param;
+        currentNode.rollBackSignatureCnt.put(result.vi.tx.id, 0);
+        currentNode.rollBackCnt.put(result.vi.tx.id, 0);
+        shardPair nodeOriginalShards = ModelData.originalShardIndex.get(currentNode.getId());
+        for (TxInput input : result.vi.inputs) {
+            int responsibleShard = (int)input.tid % ModelData.shardNum;
+            if (nodeOriginalShards.first == responsibleShard || nodeOriginalShards.second == responsibleShard) {
+                if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
+                    currentNode.sendToHalfOriginalShard(responsibleShard, result.vi.tx.hashCode(), new ReCheck(),
+                            new RecheckInfo(result.vi.tx, input, currentNode.getId()),
+                            result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8 + 44);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+class ReCheck implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        RecheckInfo consensusParam = (RecheckInfo) param;
+        TxInput input = consensusParam.input;
+        if (ModelData.verifyUTXO(input, consensusParam.tx.id))
+            currentNode.stayBusy(ModelData.verificationTime, new VoteForPass(), param);
+        else
+            currentNode.stayBusy(ModelData.verificationTime, new VoteForRollBack(), param);
+    }
+}
+
+class RecheckResult extends EventParam {
+    public final RecheckInfo ri;
+    public final boolean rollback;
+
+    public RecheckResult(boolean rollback, RecheckInfo ri) {
+        this.rollback = rollback;
+        this.ri = ri;
+    }
+}
+
+class VoteForPass implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        RecheckInfo consensusParam = (RecheckInfo) param;
+        currentNode.sendMessage(consensusParam.leader, new CollectRecheck(),
+                new RecheckResult(false, consensusParam),
+                45 + consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8);
+    }
+}
+
+class VoteForRollBack implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        RecheckInfo consensusParam = (RecheckInfo) param;
+        currentNode.sendMessage(consensusParam.leader, new CollectRecheck(),
+                new RecheckResult(true, consensusParam),
+                45 + consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8);
+    }
+}
+
+// only called by the leader
+class CollectRecheck implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        RecheckResult result = (RecheckResult) param;
+        int newSignatureCnt = currentNode.rollBackSignatureCnt.get(result.ri.tx.id) + 1;
+        currentNode.rollBackSignatureCnt.put(result.ri.tx.id, newSignatureCnt);
+        int responsibleShard = (int)result.ri.input.tid % ModelData.shardNum;
+        int participateNumber = 0;
+        for (int i = 0; i < ModelData.shardNum; ++i) {
+            List<Integer> nodes = ModelData.overlapShards.get(new shardPair(responsibleShard, i));
+            for (int node : nodes) {
+                if (node != currentNode.getId() && (Objects.hash(node, result.ri.tx.hashCode())) % 2 == 0)
+                    participateNumber++;
+            }
+        }
+        if (result.rollback) {
+            int newRollBackCnt = currentNode.rollBackCnt.get(result.ri.tx.id) + 1;
+            int threshold = participateNumber * 2 / 3;
+            if (newRollBackCnt > threshold) {
+                currentNode.rollBackCnt.remove(result.ri.tx.id);
+                currentNode.rollBackSignatureCnt.remove(result.ri.tx.id);
+                // TODO: need an interface to rollback
+                // abort situation 2
+                ModelData.collectedVerification.remove(result.ri.tx.id);
+                for (TxInput input : result.ri.tx.inputs) {
+                    ModelData.unlockUTXO(input, result.ri.tx.id);
+                }
+
+                // send to all related shards
+                Set<Integer> involvedShards = new HashSet<>();
+                for (TxInput input : result.ri.tx.inputs) {
+                    int rollbackShard = (int)input.tid % ModelData.shardNum;
+                    involvedShards.add(rollbackShard);
+                }
+                int outputShard = (int)result.ri.tx.id % ModelData.shardNum;
+                involvedShards.add(outputShard);
+                for (int shard : involvedShards) {
+                    currentNode.sendToOriginalShard(shard, new RollBack(), param,
+                            65 + result.ri.tx.inputs.size() * 48 + result.ri.tx.outputNum * 8);
+                }
+                return;
+            }
+            currentNode.rollBackCnt.put(result.ri.tx.id, newRollBackCnt);
+        }
+        // consensus failed when every node has voted yet not enough passes are collected
+        if (newSignatureCnt == participateNumber) {
+            currentNode.rollBackCnt.remove(result.ri.tx.id);
+            currentNode.rollBackSignatureCnt.remove(result.ri.tx.id);
+            // TODO: if recheck decides not to roll back, nothing need to be done now,
+            // TODO: but we may add punishment for fake alert
+        }
+    }
+}
+
+class RollBack implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        // TODO: is 200ms a proper time?
+        currentNode.stayBusy(200, new RollBackAction(), new VoidEventParam());
+    }
+}
+
+class RollBackAction implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        // TODO: do something
     }
 }
