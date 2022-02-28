@@ -23,6 +23,7 @@ public class TxGeneration implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+        // Running on client
         TxInfo tx = new TxInfo();
         int inputNum = RandomChoose.chooseByDistribution(inputNumDistribution);
         tx.outputNum = RandomChoose.chooseByDistribution(outputNumDistribution);
