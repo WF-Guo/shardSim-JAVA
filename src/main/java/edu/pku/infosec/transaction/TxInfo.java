@@ -1,11 +1,9 @@
 package edu.pku.infosec.transaction;
 
-import edu.pku.infosec.event.EventParam;
-
 import java.util.ArrayList;
 import java.util.List;
 
-public class TxInfo extends EventParam {
+public class TxInfo {
     static long txCnt = 0;
     public final long id;
     public final List<TxInput> inputs;

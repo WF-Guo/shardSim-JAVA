@@ -1,9 +1,7 @@
 package edu.pku.infosec.node;
 
-import edu.pku.infosec.event.Event;
 import edu.pku.infosec.event.EventDriver;
-import edu.pku.infosec.event.EventHandler;
-import edu.pku.infosec.event.EventParam;
+import edu.pku.infosec.event.NodeAction;
 
 public class Node {
     private double nextIdleTime;
@@ -19,28 +17,28 @@ public class Node {
         return id;
     }
 
-    public void sendMessage(int to, EventHandler receivingAction, EventParam data, int size) {
+    public void sendMessage(int to, NodeAction receivingAction, int size) {
         if(id == -1)
             throw new RuntimeException("sendMessage() is for nodes");
-        network.sendMessage(id, to, receivingAction, data, size);
+        network.sendMessage(id, to, receivingAction, size);
     }
 
-    public void sendOut(EventHandler receivingAction, EventParam data) {
-        network.sendOut(receivingAction, data);
+    public void sendOut(NodeAction receivingAction) {
+        network.sendOut(receivingAction);
     }
 
-    public void sendIn(int id, EventHandler receivingAction, EventParam data) {
+    public void sendIn(int id, NodeAction receivingAction) {
         if(this.id != -1)
             throw new RuntimeException("sendIn() is for client");
-        network.sendIn(id,receivingAction, data);
+        network.sendIn(id, receivingAction);
     }
 
     public double getNextIdleTime() {
         return nextIdleTime;
     }
 
-    public void stayBusy(double busyTime, EventHandler nextAction, EventParam param) {
+    public void stayBusy(double busyTime, NodeAction nextAction) {
         nextIdleTime = EventDriver.getCurrentTime() + busyTime;
-        EventDriver.insertEvent(new Event(nextIdleTime, this, nextAction, param));
+        EventDriver.insertEvent(nextIdleTime, this, nextAction);
     }
 }

@@ -1,12 +1,11 @@
 package edu.pku.infosec.customized;
 
-import edu.pku.infosec.event.EventHandler;
-import edu.pku.infosec.event.EventParam;
+import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 
-public class TxProcessing implements EventHandler {
+public class TxProcessing implements NodeAction {
     @Override
-    public void run(Node currentNode, EventParam param) {
+    public void runOn(Node currentNode) {
         /*
         Define your transaction processing rule here
         You can use the following to describe your model behaviour:
