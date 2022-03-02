@@ -1,5 +1,6 @@
 package edu.pku.infosec.event;
 
+import edu.pku.infosec.node.Network;
 import edu.pku.infosec.node.Node;
 
 import java.util.PriorityQueue;
@@ -42,8 +43,7 @@ class Event implements Comparable<Event> {
     }
 
     public void happen() {
-        // client has an id of -1
-        if(responsibleNode.getId() != -1 && responsibleNode.getNextIdleTime() > timeToHappen) {
+        if(responsibleNode.getId() != Network.EXTERNAL_ID && responsibleNode.getNextIdleTime() > timeToHappen) {
             timeToHappen = responsibleNode.getNextIdleTime();
             EventDriver.insertEvent(responsibleNode.getNextIdleTime(), responsibleNode, nodeAction);
         }

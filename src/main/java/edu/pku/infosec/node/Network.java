@@ -15,12 +15,13 @@ public abstract class Network {
     private final Edge[][] nextEdge;
     private final boolean limitBandwidth;
     private final long externalLatency;
+    public static final int EXTERNAL_ID = -1;
 
     protected Network(int size, boolean limitBandwidth, long externalLatency) {
         this.limitBandwidth = limitBandwidth;
         this.externalLatency = externalLatency;
         nodes = new Node[size];
-        externalNode = new Node(-1, this);
+        externalNode = new Node(EXTERNAL_ID, this);
         for (int i = 0; i < nodes.length; i++) {
             nodes[i] = new Node(i, this);
         }
