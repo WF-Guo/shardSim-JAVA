@@ -18,7 +18,7 @@ public class Node {
     }
 
     public void sendMessage(int to, NodeAction receivingAction, int size) {
-        if(id == Network.EXTERNAL_ID)
+        if(id == Network.EXTERNAL_ID || to == Network.EXTERNAL_ID)
             throw new RuntimeException("sendMessage() is for nodes");
         network.sendMessage(id, to, receivingAction, size);
     }
