@@ -22,7 +22,7 @@ public class TxStat {
         relatedTxs.put(input, tx);
     }
 
-    public static void commit(TxInfo tx) {
+    public static void confirm(TxInfo tx) {
         if(commitTime.containsKey(tx.id))
             return; // Repeated
         if(tx.inputs.size() > 0) // not coinbase

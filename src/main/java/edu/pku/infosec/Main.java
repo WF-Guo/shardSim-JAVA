@@ -38,7 +38,7 @@ public class Main {
         for(int i = 0; i < 10000; i++) {
             TxInfo coinbase = new TxInfo();
             coinbase.outputNum = 1;
-            TxStat.commit(coinbase);
+            TxStat.confirm(coinbase);
             ModelData.addInitUTXO(new TxInput(coinbase.id, 0));
         }
         TxGenScheduler.generate(network.externalNode, JSON.parseObject(properties.getProperty("transactions")));
