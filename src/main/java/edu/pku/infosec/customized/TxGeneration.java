@@ -38,7 +38,6 @@ public class TxGeneration implements NodeAction {
             for (int i = 1; i < inputNum && TxStat.utxoSize() > 0; i++)
                 attack.inputs.add(TxStat.getRandomUTXO());
             TxStat.submit(attack);
-            TxStat.markConflict(tx, attack);
             currentNode.sendIn(random.nextInt(ModelData.nodeNum), new TxProcessing());
         }
     }
