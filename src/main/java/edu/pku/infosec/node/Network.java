@@ -1,9 +1,7 @@
 package edu.pku.infosec.node;
 
-import edu.pku.infosec.event.Event;
 import edu.pku.infosec.event.EventDriver;
-import edu.pku.infosec.event.EventHandler;
-import edu.pku.infosec.event.EventParam;
+import edu.pku.infosec.event.NodeAction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,12 +15,13 @@ public abstract class Network {
     private final Edge[][] nextEdge;
     private final boolean limitBandwidth;
     private final long externalLatency;
+    public static final int EXTERNAL_ID = -1;
 
     protected Network(int size, boolean limitBandwidth, long externalLatency) {
         this.limitBandwidth = limitBandwidth;
         this.externalLatency = externalLatency;
         nodes = new Node[size];
-        externalNode = new Node(-1, this);
+        externalNode = new Node(EXTERNAL_ID, this);
         for (int i = 0; i < nodes.length; i++) {
             nodes[i] = new Node(i, this);
         }
@@ -37,12 +36,14 @@ public abstract class Network {
     }
 
     protected final void addEdge(int u, int v, int latency) {
-        if(limitBandwidth)
+        if (limitBandwidth)
             throw new RuntimeException("Bandwidth is required in this network.");
-        graph.get(v).add(new Edge(u, v, latency, 0));
+        addEdge(u, v, latency, 0);
     }
 
     protected final void addEdge(int u, int v, int latency, int bandwidth) {
+        if (u < 0 || v < 0 || u >= nodes.length || v >= nodes.length)
+            throw new RuntimeException("Node index out of bounds of length " + nodes.length);
         graph.get(v).add(new Edge(u, v, latency, bandwidth));
     }
 
@@ -85,51 +86,44 @@ public abstract class Network {
         }
     }
 
-    final void sendMessage(int from, int to, EventHandler receivingAction, EventParam data, int size) {
+    final void sendMessage(int from, int to, NodeAction receivingAction, int size) {
         if (limitBandwidth) {
             EventDriver.insertEvent(
-                    new Event(
-                            EventDriver.getCurrentTime(),
-                            nodes[from],
-                            new EventHandler() {
-                                @Override
-                                public void run(Node currentNode, EventParam param) {
-                                    MessageRelayParam messageRelayParam = (MessageRelayParam) param;
-                                    if (currentNode.getId() == to)
-                                        receivingAction.run(currentNode, data);
-                                    else {
-                                        Edge e = nextEdge[currentNode.getId()][to];
-                                        if (EventDriver.getCurrentTime() < e.nextIdleTime) {
-                                            // wait for idle bandwidth
-                                            EventDriver.insertEvent(
-                                                    new Event(e.nextIdleTime, currentNode, this, messageRelayParam)
-                                            );
-                                        } else {
-                                            e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
-                                            double receivingTime = EventDriver.getCurrentTime() + e.latency;
-                                            EventDriver.insertEvent(new Event(receivingTime, nodes[e.v], this,
-                                                    messageRelayParam)); // Relay!
-                                        }
-                                    }
+                    EventDriver.getCurrentTime(),
+                    nodes[from],
+                    new NodeAction() {
+                        @Override
+                        public void runOn(Node currentNode) {
+                            if (currentNode.getId() == to)
+                                receivingAction.runOn(currentNode);
+                            else {
+                                Edge e = nextEdge[currentNode.getId()][to];
+                                if (EventDriver.getCurrentTime() < e.nextIdleTime) {
+                                    // wait for idle bandwidth
+                                    EventDriver.insertEvent(e.nextIdleTime, currentNode, this);
+                                } else {
+                                    e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
+                                    double receivingTime = EventDriver.getCurrentTime() + e.latency;
+                                    EventDriver.insertEvent(receivingTime, nodes[e.v], this); // Relay!
                                 }
-                            },
-                            new MessageRelayParam(receivingAction, data)
-                    )
+                            }
+                        }
+                    }
             );
         } else {
             double receivingTime = EventDriver.getCurrentTime() + dist[from][to];
-            EventDriver.insertEvent(new Event(receivingTime, nodes[to], receivingAction, data));
+            EventDriver.insertEvent(receivingTime, nodes[to], receivingAction);
         }
     }
 
-    final void sendIn(int nodeID, EventHandler receivingAction, EventParam data) {
+    final void sendIn(int nodeID, NodeAction receivingAction) {
         double receivingTime = EventDriver.getCurrentTime() + externalLatency;
-        EventDriver.insertEvent(new Event(receivingTime, nodes[nodeID], receivingAction, data));
+        EventDriver.insertEvent(receivingTime, nodes[nodeID], receivingAction);
     }
 
-    final void sendOut(EventHandler receivingAction, EventParam data) {
+    final void sendOut(NodeAction receivingAction) {
         double receivingTime = EventDriver.getCurrentTime() + externalLatency;
-        EventDriver.insertEvent(new Event(receivingTime, externalNode, receivingAction, data));
+        EventDriver.insertEvent(receivingTime, externalNode, receivingAction);
     }
 }
 
@@ -146,15 +140,5 @@ class Edge {
         this.latency = latency;
         this.bandwidth = bandwidth;
         this.nextIdleTime = 0;
-    }
-}
-
-class MessageRelayParam extends EventParam {
-    EventHandler finalHandler;
-    EventParam data;
-
-    public MessageRelayParam(EventHandler finalHandler, EventParam data) {
-        this.finalHandler = finalHandler;
-        this.data = data;
     }
 }
