@@ -37,10 +37,11 @@ public class TxStat {
                 if(conflict.equals(tx))
                     continue;
                 for(TxInput released: conflict.inputs) {
+                    if(released.equals(spent))
+                        continue;
                     relatedTxs.getGroup(released).remove(conflict);
                     if(relatedTxs.getGroup(released).isEmpty()) {
                         utxoSet.add(released);
-                        relatedTxs.removeGroup(released);
                     }
                 }
             }
