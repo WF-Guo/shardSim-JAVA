@@ -30,7 +30,7 @@ public class TxGeneration implements NodeAction {
         for (int i = 0; i < inputNum && TxStat.utxoSize() > 0; i++)
             tx.inputs.add(TxStat.getRandomUTXO());
         TxStat.submit(tx);
-        currentNode.sendIn(random.nextInt(ModelData.nodeNum), new TxProcessing());
+        currentNode.sendIn(random.nextInt(ModelData.nodeNum), new TxProcessing(tx));
         if (random.nextDouble() < DSAttackRate && tx.inputs.size() > 0) {
             TxInfo attack = new TxInfo();
             attack.outputNum = tx.outputNum;
@@ -38,7 +38,7 @@ public class TxGeneration implements NodeAction {
             for (int i = 1; i < inputNum && TxStat.utxoSize() > 0; i++)
                 attack.inputs.add(TxStat.getRandomUTXO());
             TxStat.submit(attack);
-            currentNode.sendIn(random.nextInt(ModelData.nodeNum), new TxProcessing());
+            currentNode.sendIn(random.nextInt(ModelData.nodeNum), new TxProcessing(attack));
         }
     }
 }
