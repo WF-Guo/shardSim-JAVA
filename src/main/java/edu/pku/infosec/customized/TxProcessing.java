@@ -16,6 +16,6 @@ public class TxProcessing implements NodeAction {
         /*
             Define your transaction processing rule here
          */
-        currentNode.stayBusy(300, new AfterValidation(), param);
+        currentNode.stayBusy(300, new AfterValidation(txInfo));
     }
 }

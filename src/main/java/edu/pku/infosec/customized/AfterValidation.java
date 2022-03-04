@@ -1,17 +1,21 @@
 package edu.pku.infosec.customized;
 
 import edu.pku.infosec.event.EventDriver;
-import edu.pku.infosec.event.EventHandler;
-import edu.pku.infosec.event.EventParam;
+import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
 
-public class AfterValidation implements EventHandler {
+public class AfterValidation implements NodeAction {
+    private final TxInfo txInfo;
+
+    public AfterValidation(TxInfo txInfo) {
+        this.txInfo = txInfo;
+    }
+
     @Override
-    public void run(Node currentNode, EventParam param) {
-        TxInfo txInfo = (TxInfo) param;
+    public void runOn(Node currentNode) {
         System.out.println(txInfo.id + " has been received at " + EventDriver.getCurrentTime());
         System.out.println(txInfo.inputs);
         boolean ok = true;
@@ -22,7 +26,7 @@ public class AfterValidation implements EventHandler {
             }
         }
         if(ok) {
-            TxStat.commit(txInfo);
+            TxStat.confirm(txInfo);
             for(TxInput txInput: txInfo.inputs)
                 ModelData.utxoSet.remove(txInput);
         }
