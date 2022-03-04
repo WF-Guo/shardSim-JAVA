@@ -103,7 +103,8 @@ public abstract class Network {
                                     EventDriver.insertEvent(e.nextIdleTime, currentNode, this);
                                 } else {
                                     e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
-                                    double receivingTime = EventDriver.getCurrentTime() + e.latency;
+                                    double receivingTime =
+                                            EventDriver.getCurrentTime() + e.latency + (double) size / e.bandwidth;
                                     EventDriver.insertEvent(receivingTime, nodes[e.v], this); // Relay!
                                 }
                             }
