@@ -133,6 +133,24 @@ public abstract class Network {
         double receivingTime = EventDriver.getCurrentTime() + externalLatency;
         EventDriver.insertEvent(new Event(receivingTime, externalNode, receivingAction, data));
     }
+    public final void loadStat() {
+        System.out.println("node load:");
+        long max = 0, min = Long.MAX_VALUE, total = 0;
+        for (Node node : nodes) {
+            long tbt = node.totalBusyTime;
+            total += tbt;
+            max = Math.max(max, tbt);
+            min = Math.min(min, tbt);
+            System.out.println(tbt);
+        }
+        double average = total * 1.0 / nodes.length, variance = 0;
+        System.out.println("range: " + (max - min));
+        for (Node node : nodes) {
+            long tbt = node.totalBusyTime;
+            variance += Math.pow(tbt - average, 2.0);
+        }
+        System.out.println("variance: " + variance / nodes.length);
+    }
 }
 
 class Edge {

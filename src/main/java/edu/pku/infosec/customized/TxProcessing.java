@@ -63,13 +63,12 @@ public class TxProcessing implements EventHandler {
                 int secondShard = it.next();
                 inputsToVerify.addAll(shardsMapping.get(secondShard));
                 // the size is set to txinfo(x + 16) + inputNum(4) + inputNum * input(12)
-                // TODO: we don't know how many bytes does a transaction has
-                currentNode.sendToOverlapLeader(firstShard, secondShard, new StartConsensus(),
+                currentNode.sendToOverlapLeader(firstShard, secondShard, new PreprepareVerify(),
                         new VerificationInfo(txinfo, inputsToVerify, firstShard, secondShard),
                         txinfo.inputs.size() * 48 + txinfo.outputNum * 8 + 20 + inputsToVerify.size() * 12);
             }
             else {
-                currentNode.sendToOverlapLeader(firstShard, firstShard, new StartConsensus(),
+                currentNode.sendToOverlapLeader(firstShard, firstShard, new PreprepareVerify(),
                         new VerificationInfo(txinfo, inputsToVerify, firstShard, firstShard),
                         txinfo.inputs.size() * 48 + txinfo.outputNum * 8 + 20 + inputsToVerify.size() * 12);
             }
@@ -91,119 +90,149 @@ class VerificationInfo extends EventParam {
     }
 }
 
-// will only be called by overlapshard leader TODO: shall we replace the star network and use tree-style organization?
-class StartConsensus implements EventHandler {
-    @Override
-    public void run(Node currentNode, EventParam param) {
-        VerificationInfo consensusParam = (VerificationInfo) param;
-        currentNode.signatureCnt.put(consensusParam.tx.id, 0);
-        currentNode.passCnt.put(consensusParam.tx.id, 0);
-        currentNode.sendToOverlapShard(consensusParam.firstShard, consensusParam.secondShard, new Verify(), param,
-                consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8
-                        + 20 + consensusParam.inputs.size() * 12);
-    }
-}
-
-class Verify implements EventHandler {
+class PreprepareVerify implements EventHandler {
     @Override
     public void run(Node currentNode, EventParam param) {
         VerificationInfo consensusParam = (VerificationInfo) param;
         int verifyCnt = 0;
-        for (TxInput input : consensusParam.inputs) {
-            verifyCnt++;
-            if (!ModelData.verifyUTXO(input, consensusParam.tx.id)) {
-                currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new VerificationFail(), param);
-                return;
+        if (currentNode.getId() >= ModelData.maliciousNum) {
+            for (TxInput input : consensusParam.inputs) {
+                verifyCnt++;
+                if (!ModelData.verifyUTXO(input, consensusParam.tx.id)) {
+                    currentNode.verificationCnt.put(consensusParam.tx.id, 0);
+                    currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new PreprepareFoward(),param);
+                    return;
+                }
             }
         }
-        currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new VerificationPass(), param);
+        currentNode.verificationCnt.put(consensusParam.tx.id, 1);
+        currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new PreprepareFoward(), param);
     }
 }
 
 class VerificationResult extends EventParam {
     public final VerificationInfo vi;
-    public final boolean pass;
+    public final int pass;
 
-    public VerificationResult(boolean pass, VerificationInfo vi) {
+    public VerificationResult(int pass, VerificationInfo vi) {
         this.pass = pass;
         this.vi = vi;
     }
 }
 
-class VerificationPass implements EventHandler {
+class PreprepareFoward implements EventHandler {
     @Override
     public void run(Node currentNode, EventParam param) {
         VerificationInfo consensusParam = (VerificationInfo) param;
-        currentNode.sendToSelfOverlapLeader(new Collect(),
-                new VerificationResult(true, consensusParam),
-                33 + consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8
-                        + 20 + consensusParam.inputs.size() * 12);
+        int sons = currentNode.sendToTreeSons(new PreprepareVerify(), param,consensusParam.tx.inputs.size() * 48 +
+                consensusParam.tx.outputNum * 8 + 20 + consensusParam.inputs.size() * 12);
+        if (sons == 0) { // already leaf
+            currentNode.sendToTreeParent(new PreprepareReturn(), new VerificationResult(
+                    currentNode.verificationCnt.get(consensusParam.tx.id), consensusParam),
+                    consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8 + 21 +
+                    consensusParam.inputs.size() * 12 + 64);
+        }
+        else
+            currentNode.sonWaitCnt.put(consensusParam.tx.id, sons);
     }
 }
 
-class VerificationFail implements EventHandler {
-    @Override
-    public void run(Node currentNode, EventParam param) {
-        VerificationInfo consensusParam = (VerificationInfo) param;
-        currentNode.sendToSelfOverlapLeader(new Collect(),
-                new VerificationResult(false, consensusParam),
-                33 + consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8
-                        + 20 + consensusParam.inputs.size() * 12);
-    }
-}
-
-// only called by the leader
-class Collect implements EventHandler {
+class PreprepareReturn implements EventHandler {
     @Override
     public void run(Node currentNode, EventParam param) {
         VerificationResult result = (VerificationResult) param;
-        int newSignatureCnt = currentNode.signatureCnt.get(result.vi.tx.id) + 1;
-        currentNode.signatureCnt.put(result.vi.tx.id, newSignatureCnt);
-        if (result.pass) {
-            int newPassCnt = currentNode.passCnt.get(result.vi.tx.id) + 1;
-            int threshold = ModelData.overlapShards.get(ModelData.originalShardIndex
-                    .get(currentNode.getId())).size() * 2 / 3;
-            if (newPassCnt > threshold) {
-                currentNode.passCnt.remove(result.vi.tx.id);
-                currentNode.signatureCnt.remove(result.vi.tx.id);
+        long tid = result.vi.tx.id;
+        int newCnt = currentNode.verificationCnt.get(tid) + result.pass;
+        currentNode.verificationCnt.put(tid, newCnt);
+        int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
+        if (sonWaitCnt == 1) {
+            int parent = currentNode.sendToTreeParent(new PreprepareReturn(), new VerificationResult(
+                            newCnt, result.vi), result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8 + 21 +
+                            result.vi.inputs.size() * 12 + 64);
+            currentNode.sonWaitCnt.remove(tid);
+            currentNode.verificationCnt.remove(tid);
+            if (parent == 0) { // already root
+                int threshold = ModelData.overlapShards.get(ModelData.originalShardIndex
+                        .get(currentNode.getId())).size() * 2 / 3;
+                if (newCnt > threshold) {
+                    currentNode.sendToTreeSons(new Prepare(), result.vi,result.vi.tx.inputs.size() * 48 +
+                            result.vi.tx.outputNum * 8 + 20 + result.vi.inputs.size() * 12);
+                }
+                else {
+                    // send to all related shards a result 0
+                    Set<Integer> involvedShards = new HashSet<>();
+                    for (TxInput input : result.vi.tx.inputs) {
+                        int responsibleShard = (int)input.tid % ModelData.shardNum;
+                        involvedShards.add(responsibleShard);
+                    }
+                    int outputShard = (int)result.vi.tx.id % ModelData.shardNum;
+                    involvedShards.add(outputShard);
+                    for (int shard : involvedShards) {
+                        currentNode.sendToOriginalShard(shard, new CheckCommit(),
+                                new VerificationResult(0, result.vi),64 + result.vi.tx.inputs.size() * 48
+                                        + result.vi.tx.outputNum * 8 + 21 + result.vi.inputs.size() * 12);
+                    }
+                }
+            }
+        }
+        else
+            currentNode.sonWaitCnt.put(tid, sonWaitCnt - 1);
+    }
+}
+
+class Prepare implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationInfo consensusParam = (VerificationInfo) param;
+        int sons = currentNode.sendToTreeSons(new Prepare(), param,consensusParam.tx.inputs.size() * 48 +
+                consensusParam.tx.outputNum * 8 + 20 + consensusParam.inputs.size() * 12);
+        if (sons == 0) { // already leaf
+            currentNode.sendToTreeParent(new PrepareReturn(), param, consensusParam.tx.inputs.size() * 48 +
+                    consensusParam.tx.outputNum * 8 + 21 + consensusParam.inputs.size() * 12 + 64);
+        }
+        else
+            currentNode.sonWaitCnt.put(consensusParam.tx.id, sons);
+    }
+}
+
+class PrepareReturn implements EventHandler {
+    @Override
+    public void run(Node currentNode, EventParam param) {
+        VerificationInfo result = (VerificationInfo) param;
+        long tid = result.tx.id;
+        int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
+        if (sonWaitCnt == 1) {
+            int parent = currentNode.sendToTreeParent(new PreprepareReturn(), param,result.tx.inputs.size() * 48
+                    + result.tx.outputNum * 8 + 21 + result.inputs.size() * 12 + 64);
+            currentNode.sonWaitCnt.remove(tid);
+            if (parent == 0) { // already root
+
+                // for statistics
+                ModelData.ConsensusCnt++;
+                for (TxInput input : result.inputs) {
+                    if (!ModelData.verifyUTXO(input, result.tx.id)) {
+                        ModelData.FalseConsensusCnt++;
+                        break;
+                    }
+                }
 
                 // send to all related shards
                 Set<Integer> involvedShards = new HashSet<>();
-                for (TxInput input : result.vi.tx.inputs) {
+                for (TxInput input : result.tx.inputs) {
                     int responsibleShard = (int)input.tid % ModelData.shardNum;
                     involvedShards.add(responsibleShard);
                 }
-                int outputShard = (int)result.vi.tx.id % ModelData.shardNum;
+                int outputShard = (int)result.tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToOriginalShard(shard, new CheckCommit(), param,
-                            33 + result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8
-                                    + 20 + result.vi.inputs.size() * 12);
+                    currentNode.sendToOriginalShard(shard, new CheckCommit(), new VerificationResult(1, result),
+                            32 + result.tx.inputs.size() * 48 + result.tx.outputNum * 8
+                                    + 21 + result.inputs.size() * 12);
                 }
-                return;
-            }
-            currentNode.passCnt.put(result.vi.tx.id, newPassCnt);
-        }
-        // consensus failed when every node has voted yet not enough passes are collected
-        if (newSignatureCnt == ModelData.overlapShards.get(ModelData.originalShardIndex
-                .get(currentNode.getId())).size()) {
-            currentNode.passCnt.remove(result.vi.tx.id);
-            currentNode.signatureCnt.remove(result.vi.tx.id);
-
-            // send to all related shards
-            Set<Integer> involvedShards = new HashSet<>();
-            for (TxInput input : result.vi.tx.inputs) {
-                int responsibleShard = (int)input.tid % ModelData.shardNum;
-                involvedShards.add(responsibleShard);
-            }
-            int outputShard = (int)result.vi.tx.id % ModelData.shardNum;
-            involvedShards.add(outputShard);
-            for (int shard : involvedShards) {
-                currentNode.sendToOriginalShard(shard, new CheckCommit(), new VerificationResult(false, result.vi),
-                        33 + result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8
-                                + 20 + result.vi.inputs.size() * 12);
             }
         }
+        else
+            currentNode.sonWaitCnt.put(tid, sonWaitCnt - 1);
     }
 }
 
@@ -216,21 +245,33 @@ class CheckCommit implements EventHandler {
             return;
 
         // TODO: how can we count a transaction as commited by the system?
-        if (result.pass) {
+        if (result.pass == 1) {
             // first check again
+
             shardPair nodeOriginalShards = ModelData.originalShardIndex.get(currentNode.getId());
             int verifyCnt = 0;
+            int firstShard = -1, secondShard = -1;
+            boolean alert = false;
             for (TxInput input : result.vi.inputs) {
                 int responsibleShard = (int)input.tid % ModelData.shardNum;
-                if (nodeOriginalShards.first == responsibleShard || nodeOriginalShards.second == responsibleShard) {
-                    verifyCnt++;
-                    if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
-                        currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new Alert(), param);
-                        return;
-                    }
+                if (firstShard == -1)
+                    firstShard = responsibleShard;
+                else if (firstShard != responsibleShard)
+                    secondShard = responsibleShard;
+                verifyCnt++;
+                if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
+                    alert = true;
+                    break;
                 }
             }
-            currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new CheckCommitPass(), param);
+            if (secondShard == -1)
+                secondShard = firstShard;
+            if (!Objects.equals(nodeOriginalShards, new shardPair(firstShard, secondShard)))
+                currentNode.stayBusy(1, new CheckCommitPass(), param);
+            else if (alert)
+                currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new Alert(), param);
+            else
+                currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new CheckCommitPass(), param);
         }
         else {
             // abort situation 1
@@ -290,16 +331,13 @@ class Alert implements EventHandler {
         VerificationResult result = (VerificationResult) param;
         currentNode.rollBackSignatureCnt.put(result.vi.tx.id, 0);
         currentNode.rollBackCnt.put(result.vi.tx.id, 0);
-        shardPair nodeOriginalShards = ModelData.originalShardIndex.get(currentNode.getId());
         for (TxInput input : result.vi.inputs) {
             int responsibleShard = (int)input.tid % ModelData.shardNum;
-            if (nodeOriginalShards.first == responsibleShard || nodeOriginalShards.second == responsibleShard) {
-                if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
-                    currentNode.sendToHalfOriginalShard(responsibleShard, result.vi.tx.hashCode(), new ReCheck(),
-                            new RecheckInfo(result.vi.tx, input, currentNode.getId()),
-                            result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8 + 44);
-                    return;
-                }
+            if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
+                currentNode.sendToHalfOriginalShard(responsibleShard, result.vi.tx.hashCode(), new ReCheck(),
+                        new RecheckInfo(result.vi.tx, input, currentNode.getId()),
+                        result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8 + 44);
+                return;
             }
         }
     }
@@ -310,7 +348,7 @@ class ReCheck implements EventHandler {
     public void run(Node currentNode, EventParam param) {
         RecheckInfo consensusParam = (RecheckInfo) param;
         TxInput input = consensusParam.input;
-        if (ModelData.verifyUTXO(input, consensusParam.tx.id))
+        if (ModelData.verifyUTXO(input, consensusParam.tx.id) || currentNode.getId() < ModelData.maliciousNum)
             currentNode.stayBusy(ModelData.verificationTime, new VoteForPass(), param);
         else
             currentNode.stayBusy(ModelData.verificationTime, new VoteForRollBack(), param);

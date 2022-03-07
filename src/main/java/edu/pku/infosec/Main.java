@@ -43,7 +43,11 @@ public class Main {
         }
         TxGenScheduler.generate(network.externalNode, JSON.parseObject(properties.getProperty("transactions")));
         EventDriver.start();
+        network.loadStat();
         System.out.println("Throughput:" + TxStat.throughput());
         System.out.println("Latency:" + TxStat.averageLatency());
+        System.out.println("Overlap Consensus Num: " + ModelData.ConsensusCnt);
+        System.out.println("False Overlap Consensus Num: " + ModelData.FalseConsensusCnt);
+        System.out.println("Alert Rate: " + ModelData.FalseConsensusCnt * 1.0 / ModelData.ConsensusCnt);
     }
 }

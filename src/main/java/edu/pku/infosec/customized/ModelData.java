@@ -8,6 +8,9 @@ public class ModelData {
     public static int nodeNum;
     public static int shardNum;
     public static double verificationTime;
+    public static int maliciousNum;
+    public static long ConsensusCnt = 0;
+    public static long FalseConsensusCnt = 0;
     public static Map<shardPair, List<Integer>> overlapShards;
     public static Map<Integer, shardPair> originalShardIndex;
     public final static Map<Long, List<TxInput>> collectedVerification = new HashMap<>();

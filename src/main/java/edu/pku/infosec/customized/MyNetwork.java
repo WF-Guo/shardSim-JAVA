@@ -20,6 +20,7 @@ public class MyNetwork extends Network {
         // Use addEdge(u,v,latency,bandwidth) to create a directed connection between (u,v)
         shardNum = modelConfig.getInteger("shardNum");
         ModelData.verificationTime = modelConfig.getDouble("VerificationTime");
+        ModelData.maliciousNum = modelConfig.getInteger("MaliciousNum");
         ModelData.shardNum = shardNum;
         // generate the random permutation, where each segment of around 2N/m(m+1) nodes is an overlapping shard
         List<Integer> permutation = new ArrayList<>();
@@ -42,13 +43,13 @@ public class MyNetwork extends Network {
                     {
                         if (l < pos + segment)
                         {
-                            addEdge(permutation.get(k), permutation.get(l), 100, 20 * 1024 * 1024);
-                            addEdge(permutation.get(l), permutation.get(k), 100, 20 * 1024 * 1024);
+                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
                         }
                         else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
                         {
-                            addEdge(permutation.get(k), permutation.get(l), 100, 20 * 1024 * 1024);
-                            addEdge(permutation.get(l), permutation.get(k), 100, 20 * 1024 * 1024);
+                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
                         }
                     }
                 pos += segment;
@@ -118,6 +119,34 @@ public class MyNetwork extends Network {
                     sendMessage(from, node, receivingAction, data, size);
             }
         }
+    }
+
+    final public int sendToTreeSons(int from, EventHandler receivingAction, EventParam data, int size)
+    {
+        List<Integer> nodes = overlapShards.get(originalShardIndex.get(from));
+        int index = nodes.indexOf(from) + 1;
+        int sendCnt = 0;
+        if (nodes.size() > index * 2 - 1) {
+            sendMessage(from, nodes.get(index * 2 - 1), receivingAction, data, size);
+            sendCnt++;
+        }
+        if (nodes.size() > index * 2) {
+            sendMessage(from, nodes.get(index * 2), receivingAction, data, size);
+            sendCnt++;
+        }
+        return sendCnt;
+    }
+
+    final public int sendToTreeParent(int from, EventHandler receivingAction, EventParam data, int size)
+    {
+        List<Integer> nodes = overlapShards.get(originalShardIndex.get(from));
+        int index = nodes.indexOf(from);
+        if (index != 0) {
+            sendMessage(from, nodes.get((index - 1) / 2), receivingAction, data, size);
+            return 1;
+        }
+        else
+            return 0;
     }
 
     final public void sendToOriginalShard
