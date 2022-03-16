@@ -38,6 +38,8 @@ public class Node {
     }
 
     public void stayBusy(double busyTime, NodeAction nextAction) {
+        if(nextIdleTime > EventDriver.getCurrentTime())
+            throw new RuntimeException("Calling stayBusy more than once in one function");
         nextIdleTime = EventDriver.getCurrentTime() + busyTime;
         EventDriver.insertEvent(nextIdleTime, this, nextAction);
     }
