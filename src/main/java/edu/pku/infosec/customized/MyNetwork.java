@@ -9,121 +9,110 @@ import java.util.*;
 
 public class MyNetwork extends Network {
     final public int shardNum;
-    // for overlapping shard (i,j), i < j always stands
-    final public Map<shardPair, List<Integer>> overlapShards;
-    final public Map<Integer, shardPair> originalShardIndex;
+
+    final public Map<Integer, List<Integer>> virtualShards; // member of each virtual shard
+    final public Map<Integer, List<Integer>> actualShards; // member of each actual shard
+    final public Map<Integer, List<Integer>> virtualShardContainList; // actual shards each virtual shard contains
+    final public Map<Integer, Integer> treeParent;
+    final public Map<Integer, Integer> virtualShardIndex;
 
     public MyNetwork(int size, boolean limitBandwidth, int externalLatency, JSONObject modelConfig) {
         super(size, limitBandwidth, externalLatency);
         ModelData.nodeNum = size;
         Random random = new Random(1453);
         // Use addEdge(u,v,latency,bandwidth) to create a directed connection between (u,v)
-        shardNum = modelConfig.getInteger("shardNum");
+        shardNum = modelConfig.getInteger("shardNum"); // for overlapshard, shardNum is actual shard number (2^x)
         ModelData.verificationTime = modelConfig.getDouble("VerificationTime");
         ModelData.maliciousNum = modelConfig.getInteger("MaliciousNum");
         ModelData.shardNum = shardNum;
-        // generate the random permutation, where each segment of around 2N/m(m+1) nodes is an overlapping shard
+        // note: basically overlapshard map nodes according to their round hash, here we use permutation for simplicity
+        // using permutation results in more balanced node distribution, but should be close to hash when nodes are many
         List<Integer> permutation = new ArrayList<>();
         for (int i = 0; i < size; ++i)
             permutation.add(i);
         Collections.shuffle(permutation);
-        int segment = 2 * size / (shardNum * (shardNum + 1)), pos = 0;
-        overlapShards = new HashMap<>();
-        originalShardIndex = new HashMap<>();
-        for (int i = 0; i < shardNum; ++i) {
-            for (int j = i; j < shardNum; ++j) {
-                List<Integer> nodeList = new ArrayList<>();
-                for (int k = pos; (k < pos + segment) && (k < size); ++k) {
-                    nodeList.add(permutation.get(k));
-                    originalShardIndex.put(permutation.get(k), new shardPair(i, j));
-                }
-                // add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
-                for (int k = pos; (k < pos + segment) && (k < size); ++k)
-                    for (int l = k + 1; l < size; ++l)
-                    {
-                        if (l < pos + segment)
-                        {
-                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
-                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
-                        }
-                        else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
-                        {
-                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
-                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
-                        }
-                    }
-                pos += segment;
-                overlapShards.put(new shardPair(i, j), nodeList);
-            }
+        int segment = size / (shardNum - 1), pos = 0;
+        virtualShards = new HashMap<>();
+        actualShards = new HashMap<>();
+        virtualShardContainList = new HashMap<>();
+        treeParent = new HashMap<>();
+        virtualShardIndex = new HashMap<>();
+        Queue<Integer> shardIdQueue = new ArrayDeque<>();
+        int shardId;
+        for (shardId = 0; shardId < shardNum; ++shardId) {
+            shardIdQueue.add(shardId);
+            actualShards.put(shardId, new ArrayList<>());
         }
-        ModelData.originalShardIndex = originalShardIndex;
-        ModelData.overlapShards = overlapShards;
+        while (shardIdQueue.size() > 1) {
+            int fisrtChild, secondChild;
+            fisrtChild = shardIdQueue.remove();
+            secondChild = shardIdQueue.remove();
+            treeParent.put(fisrtChild, shardId);
+            treeParent.put(secondChild, shardId);
+            virtualShardContainList.put(shardId, new ArrayList<>());
+
+            List<Integer> nodeList = new ArrayList<>();
+            for (int k = pos; (k < pos + segment) && (k < size); ++k) {
+                nodeList.add(permutation.get(k));
+                virtualShardIndex.put(permutation.get(k), shardId);
+            }
+            // add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
+            for (int k = pos; (k < pos + segment) && (k < size); ++k) {
+                for (int l = k + 1; l < size; ++l) {
+                    if (l < pos + segment) {
+                        addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                        addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                    } else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
+                    {
+                        addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                        addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                    }
+                }
+            }
+            pos += segment;
+            Queue<Integer> ergodic = new ArrayDeque<>();
+            ergodic.add(shardId);
+            while (ergodic.size() > 0) {
+                int shard = ergodic.remove();
+                if (shard < shardNum) { // an actual shard
+                    actualShards.get(shard).addAll(nodeList);
+                    virtualShardContainList.get(shardId).add(shard);
+                }
+            }
+            virtualShards.put(shardId, nodeList);
+            shardId++;
+        }
+        ModelData.shardParent = treeParent;
+        ModelData.virtualShardContainList = virtualShardContainList;
     }
 
-    final public void sendToOverlapShard(int from, int firstshard, int secondshard, EventHandler receivingAction,
+    final public void sendToVirtualShard(int from, int shard, EventHandler receivingAction,
                                   EventParam data, int size)
     {
-        shardPair shards = new shardPair(firstshard, secondshard);
-        List<Integer> nodes = overlapShards.get(shards);
+        List<Integer> nodes = virtualShards.get(shard);
         for (int node : nodes) {
-            if (node != from)
-                sendMessage(from, node, receivingAction, data, size);
+            sendMessage(from, node, receivingAction, data, size);
         }
     }
 
-    final public void sendToSelfOverlapLeader(int from, EventHandler receivingAction, EventParam data, int size)
+    final public void sendToVirtualShardLeader(int from, int shard, EventHandler receivingAction,
+                                               EventParam data, int size)
     {
-        shardPair shards = originalShardIndex.get(from);
-        List<Integer> nodes = overlapShards.get(shards);
+        List<Integer> nodes = virtualShards.get(shard);
         sendMessage(from, nodes.get(0), receivingAction, data, size);
     }
 
-    final public void sendToOverlapLeader(int from, int firstshard, int secondshard,
-                                          EventHandler receivingAction, EventParam data, int size)
+    final public void sendToActualShard(int from, int shard, EventHandler receivingAction, EventParam data, int size)
     {
-        shardPair shards = new shardPair(firstshard, secondshard);
-        List<Integer> nodes = overlapShards.get(shards);
-        sendMessage(from, nodes.get(0), receivingAction, data, size);
-    }
-
-    final public void sendToOriginalShards(int from, EventHandler receivingAction, EventParam data, int size)
-    {
-        shardPair shards = originalShardIndex.get(from);
-        int firstShard = shards.first, secondShard = shards.second;
-        for (int i = 0; i < shardNum; ++i) {
-            List<Integer> nodes = overlapShards.get(new shardPair(firstShard, i));
-            for (int node : nodes) {
-                if (node != from)
-                    sendMessage(from, node, receivingAction, data, size);
-            }
-        }
-        for (int i = 0; i < shardNum; ++i) {
-            if (firstShard == i)
-                continue;
-            List<Integer> nodes = overlapShards.get(new shardPair(secondShard, i));
-            for (int node : nodes) {
-                if (node != from)
-                    sendMessage(from, node, receivingAction, data, size);
-            }
-        }
-    }
-
-    // hash is necessary so that for a same transaction, a same set of nodes can be selected
-    final public void sendToHalfOriginalShard
-            (int from, int originalShard, int hash, EventHandler receivingAction, EventParam data, int size)
-    {
-        for (int i = 0; i < shardNum; ++i) {
-            List<Integer> nodes = overlapShards.get(new shardPair(originalShard, i));
-            for (int node : nodes) {
-                if (node != from && (Objects.hash(node, hash)) % 2 == 0)
-                    sendMessage(from, node, receivingAction, data, size);
-            }
+        List<Integer> nodes = actualShards.get(shard);
+        for (int node : nodes) {
+            sendMessage(from, node, receivingAction, data, size);
         }
     }
 
     final public int sendToTreeSons(int from, EventHandler receivingAction, EventParam data, int size)
     {
-        List<Integer> nodes = overlapShards.get(originalShardIndex.get(from));
+        List<Integer> nodes = virtualShards.get(from);
         int index = nodes.indexOf(from) + 1;
         int sendCnt = 0;
         if (nodes.size() > index * 2 - 1) {
@@ -139,7 +128,7 @@ public class MyNetwork extends Network {
 
     final public int sendToTreeParent(int from, EventHandler receivingAction, EventParam data, int size)
     {
-        List<Integer> nodes = overlapShards.get(originalShardIndex.get(from));
+        List<Integer> nodes = virtualShards.get(from);
         int index = nodes.indexOf(from);
         if (index != 0) {
             sendMessage(from, nodes.get((index - 1) / 2), receivingAction, data, size);
@@ -147,40 +136,5 @@ public class MyNetwork extends Network {
         }
         else
             return 0;
-    }
-
-    final public void sendToOriginalShard
-            (int from, int originalShard, EventHandler receivingAction, EventParam data, int size)
-    {
-        for (int i = 0; i < shardNum; ++i) {
-            List<Integer> nodes = overlapShards.get(new shardPair(originalShard, i));
-            for (int node : nodes) {
-                sendMessage(from, node, receivingAction, data, size);
-            }
-        }
-    }
-}
-
-class shardPair {
-    final int first;
-    final int second;
-    public shardPair(int first, int second) {
-        int f = Math.min(first, second);
-        int s = Math.max(first, second);
-        this.first = f;
-        this.second = s;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        shardPair shardPair = (shardPair) o;
-        return first == shardPair.first && second == shardPair.second;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(first, second);
     }
 }

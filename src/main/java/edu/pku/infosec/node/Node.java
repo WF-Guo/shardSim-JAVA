@@ -51,48 +51,26 @@ public class Node {
         network.sendIn(id,receivingAction, data);
     }
 
-    public void sendToOverlapShard(int firstshard, int secondshard, EventHandler receivingAction,
+    public void sendToVirtualShard(int shard, EventHandler receivingAction,
                                   EventParam data, int size)
     {
         if(this.id == -1)
-            throw new RuntimeException("sendToOverlapShard() is for nodes");
-        ((MyNetwork) network).sendToOverlapShard(id, firstshard, secondshard, receivingAction, data, size);
+            throw new RuntimeException("sendToVirtualShard() is for nodes");
+        ((MyNetwork) network).sendToVirtualShard(id, shard, receivingAction, data, size);
     }
 
-    public void sendToSelfOverlapLeader(EventHandler receivingAction, EventParam data, int size)
+    public void sendToVirtualShardLeader(int shard, EventHandler receivingAction, EventParam data, int size)
     {
         if(this.id == -1)
-            throw new RuntimeException("sendToSelfOverlapLeader() is for nodes");
-        ((MyNetwork) network).sendToSelfOverlapLeader(id, receivingAction, data, size);
+            throw new RuntimeException("sendToVirtualShardLeader() is for nodes");
+        ((MyNetwork) network).sendToVirtualShardLeader(id, shard, receivingAction, data, size);
     }
 
-    public void sendToOverlapLeader(int firstshard, int secondshard, EventHandler receivingAction, EventParam data, int size)
+    public void sendToActualShard(int shard, EventHandler receivingAction, EventParam data, int size)
     {
         if(this.id == -1)
-            throw new RuntimeException("sendToOverlapLeader() is for nodes");
-        ((MyNetwork) network).sendToOverlapLeader(id, firstshard, secondshard, receivingAction, data, size);
-    }
-
-    public void sendToOriginalShards(EventHandler receivingAction, EventParam data, int size)
-    {
-        if(this.id == -1)
-            throw new RuntimeException("sendToOriginalShards() is for nodes");
-        ((MyNetwork) network).sendToOriginalShards(id, receivingAction, data, size);
-    }
-
-    public void sendToHalfOriginalShard
-            (int originalShard, int hash, EventHandler receivingAction, EventParam data, int size)
-    {
-        if(this.id == -1)
-            throw new RuntimeException("sendToHalfOriginalShard() is for nodes");
-        ((MyNetwork) network).sendToHalfOriginalShard(id, hash, originalShard, receivingAction, data, size);
-    }
-
-    public void sendToOriginalShard
-            (int originalShard, EventHandler receivingAction, EventParam data, int size) {
-        if(this.id == -1)
-            throw new RuntimeException("sendToOriginalShard() is for nodes");
-        ((MyNetwork) network).sendToOriginalShard(id, originalShard, receivingAction, data, size);
+            throw new RuntimeException("sendToActualShard() is for nodes");
+        ((MyNetwork) network).sendToActualShard(id, shard, receivingAction, data, size);
     }
 
     public int sendToTreeSons(EventHandler receivingAction, EventParam data, int size) {

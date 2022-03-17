@@ -11,8 +11,10 @@ public class ModelData {
     public static int maliciousNum;
     public static long ConsensusCnt = 0;
     public static long FalseConsensusCnt = 0;
-    public static Map<shardPair, List<Integer>> overlapShards;
-    public static Map<Integer, shardPair> originalShardIndex;
+
+    public static Map<Integer, List<Integer>> virtualShardContainList;
+    public static Map<Integer, Integer> shardParent;
+
     public final static Map<Long, List<TxInput>> collectedVerification = new HashMap<>();
     private final static Set<TxInput> UTXO = new HashSet<>();
     private final static Map<TxInput, Long> lockedUTXO = new HashMap<>();
