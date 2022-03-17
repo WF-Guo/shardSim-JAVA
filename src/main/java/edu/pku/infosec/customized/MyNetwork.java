@@ -66,8 +66,7 @@ public class MyNetwork extends Network {
         shardPair shards = new shardPair(firstshard, secondshard);
         List<Integer> nodes = overlapShards.get(shards);
         for (int node : nodes) {
-            if (node != from)
-                sendMessage(from, node, receivingAction, data, size);
+            sendMessage(from, node, receivingAction, data, size);
         }
     }
 
@@ -86,28 +85,6 @@ public class MyNetwork extends Network {
         sendMessage(from, nodes.get(0), receivingAction, data, size);
     }
 
-    final public void sendToOriginalShards(int from, EventHandler receivingAction, EventParam data, int size)
-    {
-        shardPair shards = originalShardIndex.get(from);
-        int firstShard = shards.first, secondShard = shards.second;
-        for (int i = 0; i < shardNum; ++i) {
-            List<Integer> nodes = overlapShards.get(new shardPair(firstShard, i));
-            for (int node : nodes) {
-                if (node != from)
-                    sendMessage(from, node, receivingAction, data, size);
-            }
-        }
-        for (int i = 0; i < shardNum; ++i) {
-            if (firstShard == i)
-                continue;
-            List<Integer> nodes = overlapShards.get(new shardPair(secondShard, i));
-            for (int node : nodes) {
-                if (node != from)
-                    sendMessage(from, node, receivingAction, data, size);
-            }
-        }
-    }
-
     // hash is necessary so that for a same transaction, a same set of nodes can be selected
     final public void sendToHalfOriginalShard
             (int from, int originalShard, int hash, EventHandler receivingAction, EventParam data, int size)
@@ -115,7 +92,7 @@ public class MyNetwork extends Network {
         for (int i = 0; i < shardNum; ++i) {
             List<Integer> nodes = overlapShards.get(new shardPair(originalShard, i));
             for (int node : nodes) {
-                if (node != from && (Objects.hash(node, hash)) % 2 == 0)
+                if ((Objects.hash(node, hash)) % 2 == 0)
                     sendMessage(from, node, receivingAction, data, size);
             }
         }

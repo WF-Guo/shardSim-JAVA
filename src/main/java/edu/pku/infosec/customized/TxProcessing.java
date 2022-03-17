@@ -241,6 +241,12 @@ class CheckCommit implements EventHandler {
     public void run(Node currentNode, EventParam param) {
         VerificationResult result = (VerificationResult) param;
 
+        if (currentNode.receiveCommitSet.contains(result.vi.tx.id)) { // replicate message (at most once)
+            currentNode.receiveCommitSet.remove(result.vi.tx.id);
+            return;
+        }
+        currentNode.receiveCommitSet.add(result.vi.tx.id);
+
         if (!ModelData.collectedVerification.containsKey(result.vi.tx.id)) // already commited or aborted
             return;
 

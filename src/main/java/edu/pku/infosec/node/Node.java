@@ -20,6 +20,7 @@ public class Node {
     public final Map<Long, Integer> rollBackCnt;
     public final Map<Long, Integer> sonWaitCnt;
     public final Map<Long, Integer> verificationCnt;
+    public final Set<Long> receiveCommitSet;
     public long totalBusyTime = 0;
 
     Node(int id, Network network) {
@@ -29,6 +30,7 @@ public class Node {
         rollBackSignatureCnt = new HashMap<>();
         verificationCnt= new HashMap<>();
         sonWaitCnt = new HashMap<>();
+        receiveCommitSet = new HashSet<>();
     }
 
     public int getId() {
@@ -71,13 +73,6 @@ public class Node {
         if(this.id == -1)
             throw new RuntimeException("sendToOverlapLeader() is for nodes");
         ((MyNetwork) network).sendToOverlapLeader(id, firstshard, secondshard, receivingAction, data, size);
-    }
-
-    public void sendToOriginalShards(EventHandler receivingAction, EventParam data, int size)
-    {
-        if(this.id == -1)
-            throw new RuntimeException("sendToOriginalShards() is for nodes");
-        ((MyNetwork) network).sendToOriginalShards(id, receivingAction, data, size);
     }
 
     public void sendToHalfOriginalShard
