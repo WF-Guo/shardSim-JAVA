@@ -443,8 +443,8 @@ class CollectRecheck implements EventHandler {
 class RollBack implements EventHandler {
     @Override
     public void run(Node currentNode, EventParam param) {
-        // TODO: is 200ms a proper time?
-        currentNode.stayBusy(200, new RollBackAction(), new VoidEventParam());
+        // TODO: is 10ms a proper time?
+        currentNode.stayBusy(10, new RollBackAction(), new VoidEventParam());
     }
 }
 
