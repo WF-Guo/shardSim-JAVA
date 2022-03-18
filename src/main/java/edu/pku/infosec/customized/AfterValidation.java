@@ -27,8 +27,8 @@ public class AfterValidation implements NodeAction {
         }
         if(ok) {
             TxStat.confirm(txInfo);
-            for(TxInput txInput: txInfo.inputs)
-                ModelData.utxoSet.remove(txInput);
+            txInfo.inputs.forEach(ModelData.utxoSet::remove);
+            ModelData.utxoSet.addAll(txInfo.outputs);
         }
     }
 }
