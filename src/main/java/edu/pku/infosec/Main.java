@@ -37,7 +37,7 @@ public class Main {
         // Initializing utxo set
         for(int i = 0; i < 10000; i++) {
             TxInfo coinbase = new TxInfo();
-            coinbase.outputNum = 1;
+            coinbase.setOutputNum(1);
             TxStat.confirm(coinbase);
             ModelData.addInitUTXO(new TxInput(coinbase.id, 0));
         }
