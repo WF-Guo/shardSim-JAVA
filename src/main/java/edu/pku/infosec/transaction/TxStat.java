@@ -27,8 +27,8 @@ public class TxStat {
             return; // Repeated
         if(tx.inputs.size() > 0) // not coinbase
             commitTime.put(tx.id, EventDriver.getCurrentTime());
-        for (int i = 0; i < tx.outputNum; i++) {
-            utxoSet.add(new TxInput(tx.id, i));
+        for (TxInput output: tx.outputs) {
+            utxoSet.add(output);
         }
         for(TxInput spent: tx.inputs) {
             if(relatedTxs.getGroup(spent).isEmpty())

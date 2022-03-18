@@ -7,11 +7,17 @@ public class TxInfo {
     static long txCnt = 0;
     public final long id;
     public final List<TxInput> inputs;
-    public int outputNum;
+    public final List<TxInput> outputs;
 
     public TxInfo() {
         this.id = txCnt++;
         this.inputs = new ArrayList<>();
+        this.outputs = new ArrayList<>();
+    }
+
+    public void setOutputNum(int n) {
+        for (int i = 0; i < n; i++)
+            outputs.add(new TxInput(id, i));
     }
 
     @Override
