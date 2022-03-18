@@ -12,10 +12,12 @@ public class ModelData {
     public static long ConsensusCnt = 0;
     public static long FalseConsensusCnt = 0;
 
-    public static Map<Integer, List<Integer>> virtualShardContainList;
+    public static Map<Integer, Set<Integer>> virtualShardContainList;
     public static Map<Integer, Integer> shardParent;
+    public static Map<Integer, Integer> virtualShardIndex;
+    public static Map<Integer, List<Integer>> virtualShards;
+    public static Set<Long> commitList = new HashSet<>();
 
-    public final static Map<Long, List<TxInput>> collectedVerification = new HashMap<>();
     private final static Set<TxInput> UTXO = new HashSet<>();
     private final static Map<TxInput, Long> lockedUTXO = new HashMap<>();
 

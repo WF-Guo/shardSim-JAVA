@@ -12,8 +12,9 @@ public class MyNetwork extends Network {
 
     final public Map<Integer, List<Integer>> virtualShards; // member of each virtual shard
     final public Map<Integer, List<Integer>> actualShards; // member of each actual shard
-    final public Map<Integer, List<Integer>> virtualShardContainList; // actual shards each virtual shard contains
+    final public Map<Integer, Set<Integer>> virtualShardContainList; // actual shards each virtual shard contains
     final public Map<Integer, Integer> treeParent;
+    final public Map<Integer, List<Integer>> treeChildren;
     final public Map<Integer, Integer> virtualShardIndex;
 
     public MyNetwork(int size, boolean limitBandwidth, int externalLatency, JSONObject modelConfig) {
@@ -36,6 +37,7 @@ public class MyNetwork extends Network {
         actualShards = new HashMap<>();
         virtualShardContainList = new HashMap<>();
         treeParent = new HashMap<>();
+        treeChildren = new HashMap<>();
         virtualShardIndex = new HashMap<>();
         Queue<Integer> shardIdQueue = new ArrayDeque<>();
         int shardId;
@@ -49,7 +51,10 @@ public class MyNetwork extends Network {
             secondChild = shardIdQueue.remove();
             treeParent.put(fisrtChild, shardId);
             treeParent.put(secondChild, shardId);
-            virtualShardContainList.put(shardId, new ArrayList<>());
+            treeChildren.put(shardId, new ArrayList<>());
+            treeChildren.get(shardId).add(fisrtChild);
+            treeChildren.get(shardId).add(secondChild);
+            virtualShardContainList.put(shardId, new HashSet<>());
 
             List<Integer> nodeList = new ArrayList<>();
             for (int k = pos; (k < pos + segment) && (k < size); ++k) {
@@ -78,12 +83,17 @@ public class MyNetwork extends Network {
                     actualShards.get(shard).addAll(nodeList);
                     virtualShardContainList.get(shardId).add(shard);
                 }
+                else {
+                    ergodic.addAll(treeChildren.get(shardId));
+                }
             }
             virtualShards.put(shardId, nodeList);
             shardId++;
         }
         ModelData.shardParent = treeParent;
         ModelData.virtualShardContainList = virtualShardContainList;
+        ModelData.virtualShards = virtualShards;
+        ModelData.virtualShardIndex = virtualShardIndex;
     }
 
     final public void sendToVirtualShard(int from, int shard, EventHandler receivingAction,
