@@ -31,7 +31,6 @@ import java.util.*;
            counted in throughput and latency
          */
 
-// assume all nodes are honest. TODO: add node type where it can be malicious
 public class TxProcessing implements EventHandler {
     @Override
     public void run(Node currentNode, EventParam param) {
@@ -131,6 +130,7 @@ class PreprepareFoward implements EventHandler {
                     currentNode.verificationCnt.get(consensusParam.tx.id), consensusParam),
                     consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputNum * 8 + 21 +
                     consensusParam.inputs.size() * 12 + 64);
+            currentNode.verificationCnt.remove(consensusParam.tx.id);
         }
         else
             currentNode.sonWaitCnt.put(consensusParam.tx.id, sons);
@@ -148,15 +148,15 @@ class PreprepareReturn implements EventHandler {
         if (sonWaitCnt == 1) {
             int parent = currentNode.sendToTreeParent(new PreprepareReturn(), new VerificationResult(
                             newCnt, result.vi), result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8 + 21 +
-                            result.vi.inputs.size() * 12 + 64);
+                            result.vi.inputs.size() * 12 + 64 * newCnt);
             currentNode.sonWaitCnt.remove(tid);
             currentNode.verificationCnt.remove(tid);
             if (parent == 0) { // already root
                 int threshold = ModelData.overlapShards.get(ModelData.originalShardIndex
                         .get(currentNode.getId())).size() * 2 / 3;
                 if (newCnt > threshold) {
-                    currentNode.sendToTreeSons(new Prepare(), result.vi,result.vi.tx.inputs.size() * 48 +
-                            result.vi.tx.outputNum * 8 + 20 + result.vi.inputs.size() * 12);
+                    currentNode.sendToTreeSons(new Prepare(), result,result.vi.tx.inputs.size() * 48 +
+                            result.vi.tx.outputNum * 8 + 20 + result.vi.inputs.size() * 12 + 64 * newCnt);
                 }
                 else {
                     // send to all related shards a result 0
@@ -170,7 +170,7 @@ class PreprepareReturn implements EventHandler {
                     for (int shard : involvedShards) {
                         currentNode.sendToOriginalShard(shard, new CheckCommit(),
                                 new VerificationResult(0, result.vi),64 + result.vi.tx.inputs.size() * 48
-                                        + result.vi.tx.outputNum * 8 + 21 + result.vi.inputs.size() * 12);
+                                    + result.vi.tx.outputNum * 8 + 21 + result.vi.inputs.size() * 12 + 64 * threshold);
                     }
                 }
             }
@@ -183,34 +183,39 @@ class PreprepareReturn implements EventHandler {
 class Prepare implements EventHandler {
     @Override
     public void run(Node currentNode, EventParam param) {
-        VerificationInfo consensusParam = (VerificationInfo) param;
-        int sons = currentNode.sendToTreeSons(new Prepare(), param,consensusParam.tx.inputs.size() * 48 +
-                consensusParam.tx.outputNum * 8 + 20 + consensusParam.inputs.size() * 12);
+        VerificationResult result = (VerificationResult) param;
+        currentNode.verificationCnt.put(result.vi.tx.id, 1);
+        int sons = currentNode.sendToTreeSons(new Prepare(), param,result.vi.tx.inputs.size() * 48 +
+                result.vi.tx.outputNum * 8 + 20 + result.vi.inputs.size() * 12 + 64 * result.pass);
         if (sons == 0) { // already leaf
-            currentNode.sendToTreeParent(new PrepareReturn(), param, consensusParam.tx.inputs.size() * 48 +
-                    consensusParam.tx.outputNum * 8 + 21 + consensusParam.inputs.size() * 12 + 64);
+            currentNode.sendToTreeParent(new PrepareReturn(), param, result.vi.tx.inputs.size() * 48 +
+                    result.vi.tx.outputNum * 8 + 21 + result.vi.inputs.size() * 12 + 64);
+            currentNode.verificationCnt.remove(result.vi.tx.id);
         }
         else
-            currentNode.sonWaitCnt.put(consensusParam.tx.id, sons);
+            currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
     }
 }
 
 class PrepareReturn implements EventHandler {
     @Override
     public void run(Node currentNode, EventParam param) {
-        VerificationInfo result = (VerificationInfo) param;
-        long tid = result.tx.id;
+        VerificationResult result = (VerificationResult) param;
+        long tid = result.vi.tx.id;
+        int newCnt = currentNode.verificationCnt.get(tid) + result.pass;
+        currentNode.verificationCnt.put(tid, newCnt);
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PreprepareReturn(), param,result.tx.inputs.size() * 48
-                    + result.tx.outputNum * 8 + 21 + result.inputs.size() * 12 + 64);
+            int parent = currentNode.sendToTreeParent(new PreprepareReturn(), param,result.vi.tx.inputs.size() * 48
+                    + result.vi.tx.outputNum * 8 + 21 + result.vi.inputs.size() * 12 + 64 * newCnt);
             currentNode.sonWaitCnt.remove(tid);
+            currentNode.verificationCnt.remove(tid);
             if (parent == 0) { // already root
 
                 // for statistics
                 ModelData.ConsensusCnt++;
-                for (TxInput input : result.inputs) {
-                    if (!ModelData.verifyUTXO(input, result.tx.id)) {
+                for (TxInput input : result.vi.inputs) {
+                    if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
                         ModelData.FalseConsensusCnt++;
                         break;
                     }
@@ -218,16 +223,16 @@ class PrepareReturn implements EventHandler {
 
                 // send to all related shards
                 Set<Integer> involvedShards = new HashSet<>();
-                for (TxInput input : result.tx.inputs) {
+                for (TxInput input : result.vi.tx.inputs) {
                     int responsibleShard = (int)input.tid % ModelData.shardNum;
                     involvedShards.add(responsibleShard);
                 }
-                int outputShard = (int)result.tx.id % ModelData.shardNum;
+                int outputShard = (int)result.vi.tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToOriginalShard(shard, new CheckCommit(), new VerificationResult(1, result),
-                            32 + result.tx.inputs.size() * 48 + result.tx.outputNum * 8
-                                    + 21 + result.inputs.size() * 12);
+                    currentNode.sendToOriginalShard(shard, new CheckCommit(), new VerificationResult(1, result.vi),
+                            32 + result.vi.tx.inputs.size() * 48 + result.vi.tx.outputNum * 8
+                                    + 21 + result.vi.inputs.size() * 12 + 64 * newCnt);
                 }
             }
         }
@@ -281,6 +286,7 @@ class CheckCommit implements EventHandler {
         }
         else {
             // abort situation 1
+            // TODO abort time
             ModelData.collectedVerification.remove(result.vi.tx.id);
             for (TxInput input : result.vi.tx.inputs) {
                 ModelData.unlockUTXO(input, result.vi.tx.id);
@@ -306,6 +312,7 @@ class CheckCommitPass implements EventHandler {
                     ModelData.addUTXO(new TxInput(result.vi.tx.id, i));
                 }
                 currentNode.sendOut(new Commit(), param);
+                // TODO commit time?
             }
         }
     }
