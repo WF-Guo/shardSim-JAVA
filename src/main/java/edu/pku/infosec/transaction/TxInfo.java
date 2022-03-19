@@ -33,11 +33,6 @@ public class TxInfo {
 
     @Override
     public int hashCode() {
-        return (int) (id ^ (id >>> 32));
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, inputs, outputNum);
+        return Objects.hash(id, inputs, outputs);
     }
 }
