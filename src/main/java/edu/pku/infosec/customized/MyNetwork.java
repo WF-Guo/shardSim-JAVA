@@ -59,23 +59,6 @@ public class MyNetwork extends Network {
         ModelData.overlapShards = overlapShards;
     }
 
-    final public void sendToOverlapShard(int from, int firstshard, int secondshard, NodeAction receivingAction,
-                                  int size)
-    {
-        shardPair shards = new shardPair(firstshard, secondshard);
-        List<Integer> nodes = overlapShards.get(shards);
-        for (int node : nodes) {
-            sendMessage(from, node, receivingAction, size);
-        }
-    }
-
-    final public void sendToSelfOverlapLeader(int from, NodeAction receivingAction, int size)
-    {
-        shardPair shards = originalShardIndex.get(from);
-        List<Integer> nodes = overlapShards.get(shards);
-        sendMessage(from, nodes.get(0), receivingAction, size);
-    }
-
     final public void sendToOverlapLeader(int from, int firstshard, int secondshard,
                                           NodeAction receivingAction, int size)
     {

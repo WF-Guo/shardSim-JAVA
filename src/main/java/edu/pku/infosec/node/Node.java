@@ -20,7 +20,6 @@ public class Node {
     public final Map<Long, Integer> sonWaitCnt;
     public final Map<Long, Integer> verificationCnt;
     public final Set<Long> receiveCommitSet;
-    public long totalBusyTime = 0;
 
     Node(int id, Network network) {
         this.id = id;
@@ -50,21 +49,6 @@ public class Node {
         if (this.id != Network.EXTERNAL_ID)
             throw new RuntimeException("sendIn() is for client");
         network.sendIn(id, receivingAction);
-    }
-
-    public void sendToOverlapShard(int firstshard, int secondshard, NodeAction receivingAction,
-                                  int size)
-    {
-        if(this.id == -1)
-            throw new RuntimeException("sendToOverlapShard() is for nodes");
-        ((MyNetwork) network).sendToOverlapShard(id, firstshard, secondshard, receivingAction, size);
-    }
-
-    public void sendToSelfOverlapLeader(NodeAction receivingAction, int size)
-    {
-        if(this.id == -1)
-            throw new RuntimeException("sendToSelfOverlapLeader() is for nodes");
-        ((MyNetwork) network).sendToSelfOverlapLeader(id, receivingAction, size);
     }
 
     public void sendToOverlapLeader(int firstshard, int secondshard, NodeAction receivingAction, int size)
