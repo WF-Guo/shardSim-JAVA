@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 public abstract class Network {
+    public static final int EXTERNAL_ID = -1;
     public final Node externalNode;
     private final Node[] nodes;
     private final List<List<Edge>> graph;
@@ -15,7 +16,6 @@ public abstract class Network {
     private final Edge[][] nextEdge;
     private final boolean limitBandwidth;
     private final long externalLatency;
-    public static final int EXTERNAL_ID = -1;
 
     protected Network(int size, boolean limitBandwidth, long externalLatency) {
         this.limitBandwidth = limitBandwidth;
@@ -125,6 +125,14 @@ public abstract class Network {
     final void sendOut(NodeAction receivingAction) {
         double receivingTime = EventDriver.getCurrentTime() + externalLatency;
         EventDriver.insertEvent(receivingTime, externalNode, receivingAction);
+    }
+
+    public final List<Double> listNodeLoads() {
+        List<Double> nodeLoads = new ArrayList<>();
+        for (Node node : nodes) {
+            nodeLoads.add(node.getTotalBusyTime());
+        }
+        return nodeLoads;
     }
 }
 
