@@ -1,10 +1,8 @@
 package edu.pku.infosec.node;
 
 import edu.pku.infosec.customized.MyNetwork;
-import edu.pku.infosec.event.Event;
 import edu.pku.infosec.event.EventDriver;
-import edu.pku.infosec.event.EventHandler;
-import edu.pku.infosec.event.EventParam;
+import edu.pku.infosec.event.NodeAction;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,78 +35,81 @@ public class Node {
         return id;
     }
 
-    public void sendMessage(int to, EventHandler receivingAction, EventParam data, int size) {
-        if(id == -1)
+    public void sendMessage(int to, NodeAction receivingAction, int size) {
+        if(id == Network.EXTERNAL_ID || to == Network.EXTERNAL_ID)
             throw new RuntimeException("sendMessage() is for nodes");
-        network.sendMessage(id, to, receivingAction, data, size);
+        network.sendMessage(id, to, receivingAction, size);
     }
 
-    public void sendOut(EventHandler receivingAction, EventParam data) {
-        network.sendOut(receivingAction, data);
+    public void sendOut(NodeAction receivingAction) {
+        network.sendOut(receivingAction);
     }
 
-    public void sendIn(int id, EventHandler receivingAction, EventParam data) {
-        if(this.id != -1)
+    public void sendIn(int id, NodeAction receivingAction) {
+        if(this.id != Network.EXTERNAL_ID)
             throw new RuntimeException("sendIn() is for client");
-        network.sendIn(id,receivingAction, data);
+        network.sendIn(id, receivingAction);
     }
 
-    public void sendToOverlapShard(int firstshard, int secondshard, EventHandler receivingAction,
-                                  EventParam data, int size)
+    public void sendToOverlapShard(int firstshard, int secondshard, NodeAction receivingAction,
+                                  int size)
     {
         if(this.id == -1)
             throw new RuntimeException("sendToOverlapShard() is for nodes");
-        ((MyNetwork) network).sendToOverlapShard(id, firstshard, secondshard, receivingAction, data, size);
+        ((MyNetwork) network).sendToOverlapShard(id, firstshard, secondshard, receivingAction, size);
     }
 
-    public void sendToSelfOverlapLeader(EventHandler receivingAction, EventParam data, int size)
+    public void sendToSelfOverlapLeader(NodeAction receivingAction, int size)
     {
         if(this.id == -1)
             throw new RuntimeException("sendToSelfOverlapLeader() is for nodes");
-        ((MyNetwork) network).sendToSelfOverlapLeader(id, receivingAction, data, size);
+        ((MyNetwork) network).sendToSelfOverlapLeader(id, receivingAction, size);
     }
 
-    public void sendToOverlapLeader(int firstshard, int secondshard, EventHandler receivingAction, EventParam data, int size)
+    public void sendToOverlapLeader(int firstshard, int secondshard, NodeAction receivingAction, int size)
     {
         if(this.id == -1)
             throw new RuntimeException("sendToOverlapLeader() is for nodes");
-        ((MyNetwork) network).sendToOverlapLeader(id, firstshard, secondshard, receivingAction, data, size);
+        ((MyNetwork) network).sendToOverlapLeader(id, firstshard, secondshard, receivingAction, size);
     }
 
     public void sendToHalfOriginalShard
-            (int originalShard, int hash, EventHandler receivingAction, EventParam data, int size)
+            (int originalShard, int hash, NodeAction receivingAction, int size)
     {
         if(this.id == -1)
             throw new RuntimeException("sendToHalfOriginalShard() is for nodes");
-        ((MyNetwork) network).sendToHalfOriginalShard(id, hash, originalShard, receivingAction, data, size);
+        ((MyNetwork) network).sendToHalfOriginalShard(id, hash, originalShard, receivingAction, size);
     }
 
     public void sendToOriginalShard
-            (int originalShard, EventHandler receivingAction, EventParam data, int size) {
+            (int originalShard, NodeAction receivingAction, int size) {
         if(this.id == -1)
             throw new RuntimeException("sendToOriginalShard() is for nodes");
-        ((MyNetwork) network).sendToOriginalShard(id, originalShard, receivingAction, data, size);
+        ((MyNetwork) network).sendToOriginalShard(id, originalShard, receivingAction, size);
     }
 
-    public int sendToTreeSons(EventHandler receivingAction, EventParam data, int size) {
+    public int sendToTreeSons(NodeAction receivingAction, int size) {
         if(this.id == -1)
             throw new RuntimeException("sendToTreeSons() is for nodes");
-        return ((MyNetwork) network).sendToTreeSons(id, receivingAction, data, size);
+        return ((MyNetwork) network).sendToTreeSons(id, receivingAction, size);
     }
 
-    public int sendToTreeParent(EventHandler receivingAction, EventParam data, int size) {
+    public int sendToTreeParent(NodeAction receivingAction, int size) {
         if(this.id == -1)
             throw new RuntimeException("sendToTreeParent() is for nodes");
-        return ((MyNetwork) network).sendToTreeParent(id, receivingAction, data, size);
+        return ((MyNetwork) network).sendToTreeParent(id, receivingAction, size);
     }
 
     public double getNextIdleTime() {
         return nextIdleTime;
     }
 
-    public void stayBusy(double busyTime, EventHandler nextAction, EventParam param) {
+    public void stayBusy(double busyTime, NodeAction nextAction) {
+        if(nextIdleTime > EventDriver.getCurrentTime())
+            throw new RuntimeException("Calling stayBusy more than once in one function");
         nextIdleTime = EventDriver.getCurrentTime() + busyTime;
+        EventDriver.insertEvent(nextIdleTime, this, nextAction);
         totalBusyTime += busyTime;
-        EventDriver.insertEvent(new Event(nextIdleTime, this, nextAction, param));
+        EventDriver.insertEvent(new Event(nextIdleTime, this, nextAction));
     }
 }
