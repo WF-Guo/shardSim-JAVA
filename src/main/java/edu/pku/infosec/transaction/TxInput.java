@@ -1,5 +1,9 @@
 package edu.pku.infosec.transaction;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+
 public class TxInput {
     public final long tid;
     public final int n;
@@ -16,7 +20,12 @@ public class TxInput {
 
     @Override
     public int hashCode() {
-        return (int)(tid * 8 + n);
+        try {
+            return Arrays.hashCode(MessageDigest.getInstance("md5").digest(toString().getBytes()));
+        } catch (NoSuchAlgorithmException e) {
+            return 0;
+        }
+
     }
 
     @Override
