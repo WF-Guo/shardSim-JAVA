@@ -16,7 +16,7 @@ public class ModelData {
     public static final Map<Integer, Integer> shard2Leader = new HashMap<>();
     public static final GroupedList<Integer, Integer> shardLeader2GroupLeaders = new GroupedList<>();
     public static final Map<Integer, Integer> groupLeader2ShardLeader = new HashMap<>();
-    public static final GroupedList<Integer, Integer> groupLeaderToMembers = new GroupedList<>();
+    public static final GroupedList<Integer, Integer> groupLeader2Members = new GroupedList<>();
     public static final Map<Integer, Integer> node2GroupLeader = new HashMap<>();
     public static final Map<Integer, Integer> shardLeader2ShardSize = new HashMap<>();
     public static final Map<Integer, Integer> groupLeader2GroupSize = new HashMap<>();
@@ -52,6 +52,13 @@ public class ModelData {
 
     // addInitUTXO will be called at system initialization
     public static void addInitUTXO(TxInput utxo) {
-
+        int shardLeader = utxo.hashCode() % shardNum;
+        utxoSetOfNode(shardLeader).add(utxo);
+        for(Integer groupLeader: shardLeader2GroupLeaders.getGroup(shardLeader)) {
+            utxoSetOfNode(groupLeader).add(utxo);
+            for (Integer member : groupLeader2Members.getGroup(groupLeader)) {
+                utxoSetOfNode(member).add(utxo);
+            }
+        }
     }
 }

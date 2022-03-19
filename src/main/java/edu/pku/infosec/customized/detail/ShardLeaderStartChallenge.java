@@ -42,7 +42,7 @@ class GroupLeaderGetChallenge implements NodeAction {
         state.replyCounter = 0;
         if (state.admitted)
             state.replyCounter++;
-        for (Integer member : ModelData.groupLeaderToMembers.getGroup(currentNode.getId())) {
+        for (Integer member : ModelData.groupLeader2Members.getGroup(currentNode.getId())) {
             currentNode.sendMessage(member, new MemberGetChallenge(tx, type), 555);
         }
     }

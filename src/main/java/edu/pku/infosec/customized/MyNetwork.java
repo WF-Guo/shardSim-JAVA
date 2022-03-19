@@ -50,7 +50,7 @@ public class MyNetwork extends Network {
                 ModelData.groupLeader2ShardLeader.put(groupLeader, shardLeader);
                 for (int i = groupBeginIndex + 1; i < shardBeginIndex + shardSize &&
                         (i - shardBeginIndex - 1) * groupNum < (shardSize - 1) * (groupId + 1); i++) {
-                    ModelData.groupLeaderToMembers.put(groupLeader, permutation[i]);
+                    ModelData.groupLeader2Members.put(groupLeader, permutation[i]);
                     ModelData.node2GroupLeader.put(permutation[i], groupLeader);
                     groupSize++;
                 }

@@ -32,7 +32,7 @@ class BroadcastViewInGroup implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        for(int member: ModelData.groupLeaderToMembers.getGroup(currentNode.getId()))
+        for(int member: ModelData.groupLeader2Members.getGroup(currentNode.getId()))
             currentNode.sendMessage(member, localChange, messageSize);
         localChange.runOn(currentNode);
     }

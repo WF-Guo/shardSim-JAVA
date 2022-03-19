@@ -46,7 +46,7 @@ class GroupLeaderGetAnnouncement implements NodeAction {
     public void runOn(Node currentNode) {
         final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
         state.replyCounter = state.acceptCounter = 0;
-        for (Integer member : ModelData.groupLeaderToMembers.getGroup(currentNode.getId())) {
+        for (Integer member : ModelData.groupLeader2Members.getGroup(currentNode.getId())) {
             currentNode.sendMessage(member, new MemberGetAnnouncement(tx, type), 555);
         }
         currentNode.stayBusy(
