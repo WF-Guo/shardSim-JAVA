@@ -1,6 +1,7 @@
 package edu.pku.infosec.transaction;
 
 import edu.pku.infosec.event.EventDriver;
+import edu.pku.infosec.util.GroupedSet;
 import edu.pku.infosec.util.RandomQueue;
 
 import java.util.HashMap;
@@ -9,12 +10,7 @@ public class TxStat {
     private static final HashMap<Long, Double> submitTime = new HashMap<>();
     private static final HashMap<Long, Double> commitTime = new HashMap<>();
     private static final RandomQueue<TxInput> utxoSet = new RandomQueue<>();
-    private static final HashMap<Long, TxInfo> conflictingTx = new HashMap<>();
-
-    public static void markConflict(TxInfo tx1, TxInfo tx2) {
-        conflictingTx.put(tx1.id, tx2);
-        conflictingTx.put(tx2.id, tx1);
-    }
+    private static final GroupedSet<TxInput, TxInfo> relatedTxs = new GroupedSet<>();
 
     public static int utxoSize() {
         return utxoSet.size();
@@ -22,24 +18,36 @@ public class TxStat {
 
     public static void submit(TxInfo tx) {
         submitTime.put(tx.id, EventDriver.getCurrentTime());
+        for(TxInput input: tx.inputs)
+        relatedTxs.put(input, tx);
     }
 
-    public static void commit(TxInfo tx) {
+    public static void confirm(TxInfo tx) {
         if(commitTime.containsKey(tx.id))
             return; // Repeated
         if(tx.inputs.size() > 0) // not coinbase
             commitTime.put(tx.id, EventDriver.getCurrentTime());
-        for (int i = 0; i < tx.outputNum; i++) {
-            utxoSet.add(new TxInput(tx.id, i));
+        for (TxInput output: tx.outputs) {
+            utxoSet.add(output);
         }
-        if(conflictingTx.containsKey(tx.id)) {
-            TxInfo attack = conflictingTx.get(tx.id);
-            if(commitTime.containsKey(attack.id))
+        for(TxInput spent: tx.inputs) {
+            if(relatedTxs.getGroup(spent).isEmpty())
                 throw new RuntimeException("Conflicting transactions are both committed.");
-            for (TxInput input: attack.inputs)
-                if(!tx.inputs.contains(input))
-                    utxoSet.add(input);
+            for(TxInfo conflict: relatedTxs.getGroup(spent)) {
+                if(conflict.equals(tx))
+                    continue;
+                for(TxInput released: conflict.inputs) {
+                    if(released.equals(spent))
+                        continue;
+                    relatedTxs.getGroup(released).remove(conflict);
+                    if(relatedTxs.getGroup(released).isEmpty()) {
+                        utxoSet.add(released);
+                    }
+                }
+            }
         }
+        for(TxInput spent: tx.inputs)
+            relatedTxs.removeGroup(spent);
     }
 
     public static TxInput getRandomUTXO() {

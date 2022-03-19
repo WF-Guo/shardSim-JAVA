@@ -3,8 +3,7 @@ package edu.pku.infosec.node;
 import edu.pku.infosec.customized.MyNetwork;
 import edu.pku.infosec.event.Event;
 import edu.pku.infosec.event.EventDriver;
-import edu.pku.infosec.event.EventHandler;
-import edu.pku.infosec.event.EventParam;
+import edu.pku.infosec.event.NodeAction;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,20 +36,20 @@ public class Node {
         return id;
     }
 
-    public void sendMessage(int to, EventHandler receivingAction, EventParam data, int size) {
-        if(id == -1)
+    public void sendMessage(int to, NodeAction receivingAction, int size) {
+        if(id == Network.EXTERNAL_ID || to == Network.EXTERNAL_ID)
             throw new RuntimeException("sendMessage() is for nodes");
-        network.sendMessage(id, to, receivingAction, data, size);
+        network.sendMessage(id, to, receivingAction, size);
     }
 
-    public void sendOut(EventHandler receivingAction, EventParam data) {
-        network.sendOut(receivingAction, data);
+    public void sendOut(NodeAction receivingAction) {
+        network.sendOut(receivingAction);
     }
 
-    public void sendIn(int id, EventHandler receivingAction, EventParam data) {
-        if(this.id != -1)
+    public void sendIn(int id, NodeAction receivingAction) {
+        if(this.id != Network.EXTERNAL_ID)
             throw new RuntimeException("sendIn() is for client");
-        network.sendIn(id,receivingAction, data);
+        network.sendIn(id, receivingAction);
     }
 
     public void sendToVirtualShard(int shard, EventHandler receivingAction,
@@ -91,9 +90,11 @@ public class Node {
         return nextIdleTime;
     }
 
-    public void stayBusy(double busyTime, EventHandler nextAction, EventParam param) {
+    public void stayBusy(double busyTime, NodeAction nextAction) {
+        if(nextIdleTime > EventDriver.getCurrentTime())
+            throw new RuntimeException("Calling stayBusy more than once in one function");
         nextIdleTime = EventDriver.getCurrentTime() + busyTime;
+        EventDriver.insertEvent(nextIdleTime, this, nextAction);
         totalBusyTime += busyTime;
-        EventDriver.insertEvent(new Event(nextIdleTime, this, nextAction, param));
     }
 }
