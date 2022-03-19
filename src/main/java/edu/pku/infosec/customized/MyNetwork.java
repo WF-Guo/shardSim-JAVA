@@ -1,8 +1,7 @@
 package edu.pku.infosec.customized;
 
 import com.alibaba.fastjson.JSONObject;
-import edu.pku.infosec.event.EventHandler;
-import edu.pku.infosec.event.EventParam;
+import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Network;
 
 import java.util.*;
@@ -96,52 +95,52 @@ public class MyNetwork extends Network {
         ModelData.virtualShardIndex = virtualShardIndex;
     }
 
-    final public void sendToVirtualShard(int from, int shard, EventHandler receivingAction,
-                                  EventParam data, int size)
+    final public void sendToVirtualShard(int from, int shard, NodeAction receivingAction,
+                                  int size)
     {
         List<Integer> nodes = virtualShards.get(shard);
         for (int node : nodes) {
-            sendMessage(from, node, receivingAction, data, size);
+            sendMessage(from, node, receivingAction, size);
         }
     }
 
-    final public void sendToVirtualShardLeader(int from, int shard, EventHandler receivingAction,
-                                               EventParam data, int size)
+    final public void sendToVirtualShardLeader(int from, int shard, NodeAction receivingAction,
+                                               int size)
     {
         List<Integer> nodes = virtualShards.get(shard);
-        sendMessage(from, nodes.get(0), receivingAction, data, size);
+        sendMessage(from, nodes.get(0), receivingAction, size);
     }
 
-    final public void sendToActualShard(int from, int shard, EventHandler receivingAction, EventParam data, int size)
+    final public void sendToActualShard(int from, int shard, NodeAction receivingAction, int size)
     {
         List<Integer> nodes = actualShards.get(shard);
         for (int node : nodes) {
-            sendMessage(from, node, receivingAction, data, size);
+            sendMessage(from, node, receivingAction, size);
         }
     }
 
-    final public int sendToTreeSons(int from, EventHandler receivingAction, EventParam data, int size)
+    final public int sendToTreeSons(int from, NodeAction receivingAction, int size)
     {
         List<Integer> nodes = virtualShards.get(from);
         int index = nodes.indexOf(from) + 1;
         int sendCnt = 0;
         if (nodes.size() > index * 2 - 1) {
-            sendMessage(from, nodes.get(index * 2 - 1), receivingAction, data, size);
+            sendMessage(from, nodes.get(index * 2 - 1), receivingAction, size);
             sendCnt++;
         }
         if (nodes.size() > index * 2) {
-            sendMessage(from, nodes.get(index * 2), receivingAction, data, size);
+            sendMessage(from, nodes.get(index * 2), receivingAction, size);
             sendCnt++;
         }
         return sendCnt;
     }
 
-    final public int sendToTreeParent(int from, EventHandler receivingAction, EventParam data, int size)
+    final public int sendToTreeParent(int from, NodeAction receivingAction, int size)
     {
         List<Integer> nodes = virtualShards.get(from);
         int index = nodes.indexOf(from);
         if (index != 0) {
-            sendMessage(from, nodes.get((index - 1) / 2), receivingAction, data, size);
+            sendMessage(from, nodes.get((index - 1) / 2), receivingAction, size);
             return 1;
         }
         else

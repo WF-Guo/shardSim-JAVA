@@ -1,7 +1,6 @@
 package edu.pku.infosec.node;
 
 import edu.pku.infosec.customized.MyNetwork;
-import edu.pku.infosec.event.Event;
 import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.event.NodeAction;
 
@@ -52,38 +51,30 @@ public class Node {
         network.sendIn(id, receivingAction);
     }
 
-    public void sendToVirtualShard(int shard, EventHandler receivingAction,
-                                  EventParam data, int size)
-    {
-        if(this.id == -1)
-            throw new RuntimeException("sendToVirtualShard() is for nodes");
-        ((MyNetwork) network).sendToVirtualShard(id, shard, receivingAction, data, size);
-    }
-
-    public void sendToVirtualShardLeader(int shard, EventHandler receivingAction, EventParam data, int size)
+    public void sendToVirtualShardLeader(int shard, NodeAction receivingAction, int size)
     {
         if(this.id == -1)
             throw new RuntimeException("sendToVirtualShardLeader() is for nodes");
-        ((MyNetwork) network).sendToVirtualShardLeader(id, shard, receivingAction, data, size);
+        ((MyNetwork) network).sendToVirtualShardLeader(id, shard, receivingAction, size);
     }
 
-    public void sendToActualShard(int shard, EventHandler receivingAction, EventParam data, int size)
+    public void sendToActualShard(int shard, NodeAction receivingAction, int size)
     {
         if(this.id == -1)
             throw new RuntimeException("sendToActualShard() is for nodes");
-        ((MyNetwork) network).sendToActualShard(id, shard, receivingAction, data, size);
+        ((MyNetwork) network).sendToActualShard(id, shard, receivingAction, size);
     }
 
-    public int sendToTreeSons(EventHandler receivingAction, EventParam data, int size) {
+    public int sendToTreeSons(NodeAction receivingAction, int size) {
         if(this.id == -1)
             throw new RuntimeException("sendToTreeSons() is for nodes");
-        return ((MyNetwork) network).sendToTreeSons(id, receivingAction, data, size);
+        return ((MyNetwork) network).sendToTreeSons(id, receivingAction, size);
     }
 
-    public int sendToTreeParent(EventHandler receivingAction, EventParam data, int size) {
+    public int sendToTreeParent(NodeAction receivingAction, int size) {
         if(this.id == -1)
             throw new RuntimeException("sendToTreeParent() is for nodes");
-        return ((MyNetwork) network).sendToTreeParent(id, receivingAction, data, size);
+        return ((MyNetwork) network).sendToTreeParent(id, receivingAction, size);
     }
 
     public double getNextIdleTime() {
