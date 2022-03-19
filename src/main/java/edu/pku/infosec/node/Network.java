@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 public abstract class Network {
+    public static final int EXTERNAL_ID = -1;
     public final Node externalNode;
     private final Node[] nodes;
     private final List<List<Edge>> graph;
@@ -15,7 +16,6 @@ public abstract class Network {
     private final Edge[][] nextEdge;
     private final boolean limitBandwidth;
     private final long externalLatency;
-    public static final int EXTERNAL_ID = -1;
 
     protected Network(int size, boolean limitBandwidth, long externalLatency) {
         this.limitBandwidth = limitBandwidth;
@@ -126,23 +126,13 @@ public abstract class Network {
         double receivingTime = EventDriver.getCurrentTime() + externalLatency;
         EventDriver.insertEvent(receivingTime, externalNode, receivingAction);
     }
-    public final void loadStat() {
-        System.out.println("node load:");
-        long max = 0, min = Long.MAX_VALUE, total = 0;
+
+    public final List<Double> listNodeLoads() {
+        List<Double> nodeLoads = new ArrayList<>();
         for (Node node : nodes) {
-            long tbt = node.totalBusyTime;
-            total += tbt;
-            max = Math.max(max, tbt);
-            min = Math.min(min, tbt);
-            System.out.println(tbt);
+            nodeLoads.add(node.getTotalBusyTime());
         }
-        double average = total * 1.0 / nodes.length, variance = 0;
-        System.out.println("range: " + (max - min));
-        for (Node node : nodes) {
-            long tbt = node.totalBusyTime;
-            variance += Math.pow(tbt - average, 2.0);
-        }
-        System.out.println("variance: " + variance / nodes.length);
+        return nodeLoads;
     }
 }
 
