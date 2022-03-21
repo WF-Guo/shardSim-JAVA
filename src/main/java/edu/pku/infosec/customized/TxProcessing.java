@@ -211,7 +211,7 @@ class PrepareReturn implements NodeAction {
         currentNode.verificationCnt.put(tid, newCnt);
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PreprepareReturn(result), result.vi.tx.inputs.size() * 48
+            int parent = currentNode.sendToTreeParent(new PrepareReturn(result), result.vi.tx.inputs.size() * 48
                     + result.vi.tx.outputs.size() * 8 + 21 + result.vi.inputs.size() * 12 + 64 * newCnt);
             currentNode.sonWaitCnt.remove(tid);
             currentNode.verificationCnt.remove(tid);

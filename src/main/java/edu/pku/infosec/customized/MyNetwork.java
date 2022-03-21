@@ -26,7 +26,7 @@ public class MyNetwork extends Network {
         for (int i = 0; i < size; ++i)
             permutation.add(i);
         Collections.shuffle(permutation);
-        int segment = 2 * size / (shardNum * (shardNum + 1)), pos = 0;
+        int segment = 2 * size / (shardNum * (shardNum + 1)) + 1, pos = 0;
         overlapShards = new HashMap<>();
         originalShardIndex = new HashMap<>();
         for (int i = 0; i < shardNum; ++i) {
