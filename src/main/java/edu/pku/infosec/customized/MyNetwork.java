@@ -31,7 +31,7 @@ public class MyNetwork extends Network {
         for (int i = 0; i < size; ++i)
             permutation.add(i);
         Collections.shuffle(permutation);
-        int segment = size / (shardNum - 1), pos = 0;
+        int segment = size / (shardNum - 1) + 1, pos = 0;
         virtualShards = new HashMap<>();
         actualShards = new HashMap<>();
         virtualShardContainList = new HashMap<>();
