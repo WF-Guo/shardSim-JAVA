@@ -46,9 +46,6 @@ public class Main {
         EventDriver.start();
         System.out.println("Throughput:" + TxStat.throughput());
         System.out.println("Latency:" + TxStat.averageLatency());
-        System.out.println("Overlap Consensus Num: " + ModelData.ConsensusCnt);
-        System.out.println("False Overlap Consensus Num: " + ModelData.FalseConsensusCnt);
-        System.out.println("Alert Rate: " + ModelData.FalseConsensusCnt * 1.0 / ModelData.ConsensusCnt);
         final List<Double> loads = network.listNodeLoads();
         double max = 0, min = Long.MAX_VALUE, total = 0;
         for (double load : loads) {

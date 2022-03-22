@@ -49,7 +49,7 @@ public class ModelData {
     }
 
     public static void unlockUTXO(TxInput utxo, long tid) {
-        if (lockedUTXO.get(utxo) == tid)
+        if (lockedUTXO.containsKey(utxo) && lockedUTXO.get(utxo) == tid)
             lockedUTXO.remove(utxo);
     }
 

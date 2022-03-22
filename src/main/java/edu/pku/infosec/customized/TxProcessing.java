@@ -131,8 +131,10 @@ class PreprepareReturn implements NodeAction {
                 int threshold = ModelData.virtualShards.get(ModelData.virtualShardIndex.get(currentNode.getId()))
                         .size() * 2 / 3;
                 if (newCnt > threshold) {
-                    currentNode.sendToTreeSons(new Prepare(newCnt, tx),
+                    currentNode.verificationCnt.put(tx.id, 1);
+                    int sons = currentNode.sendToTreeSons(new Prepare(newCnt, tx),
                             tx.inputs.size() * 48 + tx.outputs.size() * 8 + 20 + 64 * newCnt);
+                    currentNode.sonWaitCnt.put(tx.id, sons);
                 } else {
                     // consensus not pass, unlock & terminate
                     for (TxInput input : tx.inputs) {

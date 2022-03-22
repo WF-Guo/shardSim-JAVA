@@ -83,10 +83,11 @@ public class MyNetwork extends Network {
                     virtualShardContainList.get(shardId).add(shard);
                 }
                 else {
-                    ergodic.addAll(treeChildren.get(shardId));
+                    ergodic.addAll(treeChildren.get(shard));
                 }
             }
             virtualShards.put(shardId, nodeList);
+            shardIdQueue.add(shardId);
             shardId++;
         }
         ModelData.shardParent = treeParent;
@@ -121,7 +122,7 @@ public class MyNetwork extends Network {
 
     final public int sendToTreeSons(int from, NodeAction receivingAction, int size)
     {
-        List<Integer> nodes = virtualShards.get(from);
+        List<Integer> nodes = virtualShards.get(virtualShardIndex.get(from));
         int index = nodes.indexOf(from) + 1;
         int sendCnt = 0;
         if (nodes.size() > index * 2 - 1) {
@@ -137,7 +138,7 @@ public class MyNetwork extends Network {
 
     final public int sendToTreeParent(int from, NodeAction receivingAction, int size)
     {
-        List<Integer> nodes = virtualShards.get(from);
+        List<Integer> nodes = virtualShards.get(virtualShardIndex.get(from));
         int index = nodes.indexOf(from);
         if (index != 0) {
             sendMessage(from, nodes.get((index - 1) / 2), receivingAction, size);
