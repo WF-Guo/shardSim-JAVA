@@ -83,6 +83,9 @@ public abstract class Network {
                     }
                 }
             }
+            for(int i = 0;i < nodes.length;i++)
+                if(dist[i][target] == Integer.MAX_VALUE)
+                    throw new RuntimeException("Graph is unconnected!");
         }
     }
 
