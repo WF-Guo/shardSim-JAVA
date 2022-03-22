@@ -60,7 +60,7 @@ public class ModelData {
 
     // addInitUTXO will be called at system initialization
     public static void addInitUTXO(TxInput utxo) {
-        int shardLeader = utxo.hashCode() % shardNum;
+        int shardLeader = shard2Leader.get(getShardId(utxo));
         utxoSetOfNode(shardLeader).add(utxo);
         for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(shardLeader)) {
             utxoSetOfNode(groupLeader).add(utxo);
