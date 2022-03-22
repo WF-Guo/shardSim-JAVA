@@ -6,7 +6,9 @@ import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
 
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 
 public class TxProcessing implements NodeAction {
     private final TxInfo txInfo;
@@ -153,8 +155,10 @@ class PreprepareReturn implements NodeAction {
                 int threshold = ModelData.overlapShards.get(ModelData.originalShardIndex
                         .get(currentNode.getId())).size() * 2 / 3;
                 if (newCnt > threshold) {
-                    currentNode.sendToTreeSons(new Prepare(result), result.vi.tx.inputs.size() * 48 +
+                    currentNode.verificationCnt.put(result.vi.tx.id, 1);
+                    int sons = currentNode.sendToTreeSons(new Prepare(result), result.vi.tx.inputs.size() * 48 +
                             result.vi.tx.outputs.size() * 8 + 20 + result.vi.inputs.size() * 12 + 64 * newCnt);
+                    currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
                 } else {
                     // send to all related shards a result 0
                     Set<Integer> involvedShards = new HashSet<>();
