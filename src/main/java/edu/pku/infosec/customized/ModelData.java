@@ -23,17 +23,25 @@ public class ModelData {
     public static final Set<Integer> maliciousNodes = new HashSet<>();
     // Transaction Processing
     public static final Map<TxInfo, Integer> ClientAccessPoint = new HashMap<>();
-    private static final GroupedSet<Integer, TxInput> utxo_base = new GroupedSet<>();
-    private static final Map<Integer, Map<TxInfo, NodeSigningState>> txProc_base = new HashMap<>();
     public static final GroupedSet<TxInfo, Integer> ISSet = new GroupedSet<>();
     public static final GroupedSet<TxInfo, Integer> OSSet = new GroupedSet<>();
     public static final GroupedSet<TxInfo, Integer> RejectingISs = new GroupedSet<>();
+    private static final GroupedSet<Integer, TxInput> utxo_base = new GroupedSet<>();
+    private static final Map<Integer, Map<TxInfo, NodeSigningState>> txProc_base = new HashMap<>();
     // Constant
     public static int nodeNum;
     public static int shardNum;
-    public static double verificationTime;
+    public static double verificationTimePerInput;
+    public static double commitTimePerOutput;
+    public static double clientSigVerificationTime;
     public static double commitTime;
-    public static double localBandWidth;
+
+    public static int getShardId(TxInput input) {
+        int inputHash = input.hashCode();
+        if (inputHash < 0)
+            inputHash = -inputHash;
+        return inputHash % shardNum;
+    }
 
     public static Set<TxInput> utxoSetOfNode(int nodeId) {
         return utxo_base.getGroup(nodeId);
@@ -54,7 +62,7 @@ public class ModelData {
     public static void addInitUTXO(TxInput utxo) {
         int shardLeader = utxo.hashCode() % shardNum;
         utxoSetOfNode(shardLeader).add(utxo);
-        for(Integer groupLeader: shardLeader2GroupLeaders.getGroup(shardLeader)) {
+        for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(shardLeader)) {
             utxoSetOfNode(groupLeader).add(utxo);
             for (Integer member : groupLeader2Members.getGroup(groupLeader)) {
                 utxoSetOfNode(member).add(utxo);

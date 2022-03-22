@@ -14,8 +14,6 @@ public class MyNetwork extends Network {
         Random random = new Random();
         ModelData.nodeNum = size;
         ModelData.shardNum = modelConfig.getInteger("shardNum");
-        ModelData.verificationTime = modelConfig.getDouble("verificationTime");
-        int connectionsPerNode = modelConfig.getInteger("connectionsPerNode");
         int maliciousNodeNum = modelConfig.getInteger("maliciousNodeNum");
 
         // Generate a random permutation

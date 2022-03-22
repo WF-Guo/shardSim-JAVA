@@ -52,7 +52,6 @@ public class Main {
             total += load;
             max = Math.max(max, load);
             min = Math.min(min, load);
-            System.out.println(load);
         }
         double average = total / nodeNum, variance = 0;
         System.out.println("Range: " + (max - min));

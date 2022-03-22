@@ -139,7 +139,7 @@ class LocallyUnlockInputsImpl implements NodeAction {
         final Set<TxInput> utxoSet = ModelData.utxoSetOfNode(currentNode.getId());
         int shardId = ModelData.node2Shard.get(currentNode.getId());
         for (TxInput input : tx.inputs)
-            if (input.hashCode() % ModelData.shardNum == shardId)
+            if (ModelData.getShardId(input) == shardId)
                 utxoSet.add(input);
     }
 }
@@ -169,7 +169,7 @@ class LocallyAddOutputsImpl implements NodeAction {
         final Set<TxInput> utxoSet = ModelData.utxoSetOfNode(currentNode.getId());
         int shardId = ModelData.node2Shard.get(currentNode.getId());
         for (TxInput output : tx.outputs)
-            if (output.hashCode() % ModelData.shardNum == shardId)
+            if (ModelData.getShardId(output) == shardId)
                 utxoSet.add(output);
     }
 }

@@ -30,7 +30,7 @@ public class JudgeToSignOrNot implements NodeAction {
                 if (ModelData.maliciousNodes.contains(currentNode.getId()))
                     break;
                 for (TxInput input : tx.inputs) {
-                    if (input.hashCode() % ModelData.shardNum == shardId &&
+                    if (ModelData.getShardId(input) == shardId &&
                             !ModelData.utxoSetOfNode(currentNode.getId()).contains(input)) {
                         state.admitted = false;
                         break;
@@ -42,7 +42,7 @@ public class JudgeToSignOrNot implements NodeAction {
                 if (ModelData.maliciousNodes.contains(currentNode.getId()))
                     break;
                 for (TxInput input : tx.inputs) {
-                    if (input.hashCode() % ModelData.shardNum == shardId &&
+                    if (ModelData.getShardId(input) == shardId &&
                             !ModelData.utxoSetOfNode(currentNode.getId()).contains(input)) {
                         state.admitted = true;
                         break;

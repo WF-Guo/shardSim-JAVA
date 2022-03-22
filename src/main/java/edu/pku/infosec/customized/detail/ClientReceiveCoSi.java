@@ -97,7 +97,7 @@ class GossipAbortionToInputShards implements NodeAction {
     public void runOn(Node currentNode) {
         Set<Integer> targetShards = new HashSet<>();
         for (TxInput input : tx.inputs)
-            targetShards.add(input.hashCode() % ModelData.shardNum);
+            targetShards.add(ModelData.getShardId(input));
         targetShards.removeAll(ModelData.RejectingISs.getGroup(tx));
         for (Integer shard : targetShards) {
             Integer shardLeader = ModelData.shard2Leader.get(shard);

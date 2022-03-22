@@ -22,10 +22,10 @@ public class TxProcessing implements NodeAction {
         ModelData.ClientAccessPoint.put(txInfo, currentNode.getId());
         Set<Integer> shardSet = new HashSet<>();
         for (TxInput input : txInfo.inputs) {
-            ModelData.ISSet.put(txInfo, input.hashCode() % ModelData.shardNum);
+            ModelData.ISSet.put(txInfo, ModelData.getShardId(input));
         }
         for (TxInput output: txInfo.outputs) {
-            ModelData.OSSet.put(txInfo, output.hashCode() % ModelData.shardNum);
+            ModelData.OSSet.put(txInfo, ModelData.getShardId(output));
         }
         shardSet.addAll(ModelData.ISSet.getGroup(txInfo));
         shardSet.addAll(ModelData.OSSet.getGroup(txInfo));
