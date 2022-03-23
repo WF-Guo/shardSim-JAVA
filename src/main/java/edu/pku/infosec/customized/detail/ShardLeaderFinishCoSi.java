@@ -83,7 +83,9 @@ class LocallyCommitTransactionImpl implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
+        final Set<TxInput> uncommittedInputs = uncommittedInputsOnNode.getGroup(currentNode.getId());
         tx.inputs.forEach(utxoSet::remove);
+        tx.inputs.forEach(uncommittedInputs::remove);
         utxoSet.addAll(tx.outputs);
     }
 }
@@ -111,7 +113,9 @@ class LocallyLockInputsImpl implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
+        final Set<TxInput> uncommittedInputs = uncommittedInputsOnNode.getGroup(currentNode.getId());
         tx.inputs.forEach(utxoSet::remove); // Only those in set will be removed
+        tx.inputs.forEach(uncommittedInputs::remove);
     }
 }
 
