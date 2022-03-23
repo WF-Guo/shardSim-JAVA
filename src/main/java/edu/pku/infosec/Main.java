@@ -55,11 +55,12 @@ public class Main {
             System.out.println(load);
         }
         double average = total / nodeNum, variance = 0;
-        System.out.println("Range: " + (max - min));
+        System.out.println("Average Load: " + average);
+        System.out.println("Load Range: " + (max - min));
         for (double load : loads) {
             variance += Math.pow(load - average, 2.0);
         }
-        System.out.println("Variance: " + variance / nodeNum);
+        System.out.println("Load Variance: " + variance / nodeNum);
 
     }
 }
