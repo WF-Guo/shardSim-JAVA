@@ -39,7 +39,7 @@ public class ModelData {
     public static int getShardId(TxInput input) {
         int inputHash = input.hashCode();
         if (inputHash < 0)
-            inputHash = -inputHash;
+            inputHash -= Integer.MIN_VALUE;
         return inputHash % shardNum;
     }
 
