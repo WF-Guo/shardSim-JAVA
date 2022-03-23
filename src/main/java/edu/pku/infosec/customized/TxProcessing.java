@@ -10,6 +10,8 @@ import edu.pku.infosec.transaction.TxInput;
 import java.util.HashSet;
 import java.util.Set;
 
+import static edu.pku.infosec.customized.ModelData.*;
+
 public class TxProcessing implements NodeAction {
     private final TxInfo txInfo;
 
@@ -19,18 +21,18 @@ public class TxProcessing implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        ModelData.ClientAccessPoint.put(txInfo, currentNode.getId());
+        ClientAccessPoint.put(txInfo, currentNode.getId());
         Set<Integer> shardSet = new HashSet<>();
         for (TxInput input : txInfo.inputs) {
-            ModelData.ISSet.put(txInfo, ModelData.getShardId(input));
+            ISSet.put(txInfo, getShardId(input));
         }
-        for (TxInput output: txInfo.outputs) {
-            ModelData.OSSet.put(txInfo, ModelData.getShardId(output));
+        for (TxInput output : txInfo.outputs) {
+            OSSet.put(txInfo, getShardId(output));
         }
-        shardSet.addAll(ModelData.ISSet.getGroup(txInfo));
-        shardSet.addAll(ModelData.OSSet.getGroup(txInfo));
-        for (Integer shard : ModelData.ISSet.getGroup(txInfo)) {
-            Integer shardLeader = ModelData.shard2Leader.get(shard);
+        shardSet.addAll(ISSet.getGroup(txInfo));
+        shardSet.addAll(OSSet.getGroup(txInfo));
+        for (Integer shard : ISSet.getGroup(txInfo)) {
+            Integer shardLeader = shard2Leader.get(shard);
             if (shardSet.size() == 1)
                 currentNode.sendMessage(shardLeader, new ShardLeaderStartCoSi(txInfo, CoSiType.INTRA_SHARD_PREPARE), 555);
             else

@@ -26,7 +26,7 @@ public class ModelData {
     public static final GroupedSet<TxInfo, Integer> ISSet = new GroupedSet<>();
     public static final GroupedSet<TxInfo, Integer> OSSet = new GroupedSet<>();
     public static final GroupedSet<TxInfo, Integer> RejectingISs = new GroupedSet<>();
-    private static final GroupedSet<Integer, TxInput> utxo_base = new GroupedSet<>();
+    public static final GroupedSet<Integer, TxInput> utxoSetOnNode = new GroupedSet<>();
     private static final Map<Integer, Map<TxInfo, NodeSigningState>> txProc_base = new HashMap<>();
     // Constant
     public static int nodeNum;
@@ -43,10 +43,6 @@ public class ModelData {
         return inputHash % shardNum;
     }
 
-    public static Set<TxInput> utxoSetOfNode(int nodeId) {
-        return utxo_base.getGroup(nodeId);
-    }
-
     public static NodeSigningState getState(int nodeId, TxInfo tx) {
         txProc_base.putIfAbsent(nodeId, new HashMap<>());
         txProc_base.get(nodeId).putIfAbsent(tx, new NodeSigningState());
@@ -61,11 +57,11 @@ public class ModelData {
     // addInitUTXO will be called at system initialization
     public static void addInitUTXO(TxInput utxo) {
         int shardLeader = shard2Leader.get(getShardId(utxo));
-        utxoSetOfNode(shardLeader).add(utxo);
+        utxoSetOnNode.getGroup(shardLeader).add(utxo);
         for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(shardLeader)) {
-            utxoSetOfNode(groupLeader).add(utxo);
+            utxoSetOnNode.getGroup(groupLeader).add(utxo);
             for (Integer member : groupLeader2Members.getGroup(groupLeader)) {
-                utxoSetOfNode(member).add(utxo);
+                utxoSetOnNode.getGroup(member).add(utxo);
             }
         }
     }

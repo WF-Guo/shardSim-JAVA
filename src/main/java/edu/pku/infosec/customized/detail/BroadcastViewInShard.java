@@ -1,8 +1,10 @@
 package edu.pku.infosec.customized.detail;
 
-import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
+
+import static edu.pku.infosec.customized.ModelData.groupLeader2Members;
+import static edu.pku.infosec.customized.ModelData.shardLeader2GroupLeaders;
 
 public class BroadcastViewInShard implements NodeAction {
     NodeAction localChange;
@@ -15,7 +17,7 @@ public class BroadcastViewInShard implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        for (int groupLeader : ModelData.shardLeader2GroupLeaders.getGroup(currentNode.getId()))
+        for (int groupLeader : shardLeader2GroupLeaders.getGroup(currentNode.getId()))
             currentNode.sendMessage(groupLeader, new BroadcastViewInGroup(localChange, messageSize), messageSize);
         localChange.runOn(currentNode);
     }
@@ -32,7 +34,7 @@ class BroadcastViewInGroup implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        for(int member: ModelData.groupLeader2Members.getGroup(currentNode.getId()))
+        for (int member : groupLeader2Members.getGroup(currentNode.getId()))
             currentNode.sendMessage(member, localChange, messageSize);
         localChange.runOn(currentNode);
     }

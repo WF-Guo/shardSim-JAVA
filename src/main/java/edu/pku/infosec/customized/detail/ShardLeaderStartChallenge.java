@@ -1,10 +1,11 @@
 package edu.pku.infosec.customized.detail;
 
-import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.customized.NodeSigningState;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
+
+import static edu.pku.infosec.customized.ModelData.*;
 
 public class ShardLeaderStartChallenge implements NodeAction {
     private final TxInfo tx;
@@ -17,11 +18,11 @@ public class ShardLeaderStartChallenge implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        final NodeSigningState state = getState(currentNode.getId(), tx);
         state.replyCounter = 0;
         if (state.admitted)
             state.replyCounter++;
-        for (Integer groupLeader : ModelData.shardLeader2GroupLeaders.getGroup(currentNode.getId())) {
+        for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(currentNode.getId())) {
             currentNode.sendMessage(groupLeader, new GroupLeaderGetChallenge(tx, type), 555);
         }
     }
@@ -38,11 +39,11 @@ class GroupLeaderGetChallenge implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        final NodeSigningState state = getState(currentNode.getId(), tx);
         state.replyCounter = 0;
         if (state.admitted)
             state.replyCounter++;
-        for (Integer member : ModelData.groupLeader2Members.getGroup(currentNode.getId())) {
+        for (Integer member : groupLeader2Members.getGroup(currentNode.getId())) {
             currentNode.sendMessage(member, new MemberGetChallenge(tx, type), 555);
         }
     }
@@ -59,9 +60,9 @@ class MemberGetChallenge implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        final NodeSigningState state = getState(currentNode.getId(), tx);
         if (state.admitted)
-            currentNode.sendMessage(ModelData.node2GroupLeader.get(currentNode.getId()),
+            currentNode.sendMessage(node2GroupLeader.get(currentNode.getId()),
                     new GroupLeaderCollectCoSi(tx, type), 555);
     }
 }
@@ -77,7 +78,7 @@ class GroupLeaderCollectCoSi implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        final NodeSigningState state = getState(currentNode.getId(), tx);
         state.replyCounter += 1;
         if (state.replyCounter == state.acceptCounter && state.acceptCounter > 0) {
             currentNode.stayBusy(555, new GroupLeaderCommitCoSi(tx, type));
@@ -96,10 +97,10 @@ class GroupLeaderCommitCoSi implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
-        currentNode.sendMessage(ModelData.groupLeader2ShardLeader.get(currentNode.getId()),
+        final NodeSigningState state = getState(currentNode.getId(), tx);
+        currentNode.sendMessage(groupLeader2ShardLeader.get(currentNode.getId()),
                 new ShardLeaderCollectCoSi(tx, type, state.replyCounter), 555);
-        ModelData.clearState(currentNode.getId(), tx);
+        clearState(currentNode.getId(), tx);
     }
 }
 
@@ -117,7 +118,7 @@ class ShardLeaderCollectCoSi implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        NodeSigningState state = getState(currentNode.getId(), tx);
         state.replyCounter += replyCnt;
         if (state.replyCounter >= state.acceptCounter)
             currentNode.stayBusy(555, new ShardLeaderFinishCoSi(tx, type));

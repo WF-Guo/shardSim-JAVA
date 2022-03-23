@@ -1,12 +1,13 @@
 package edu.pku.infosec.customized.detail;
 
-import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
 
 import java.util.Set;
+
+import static edu.pku.infosec.customized.ModelData.*;
 
 public class ShardLeaderFinishCoSi implements NodeAction {
     private final TxInfo tx;
@@ -19,7 +20,7 @@ public class ShardLeaderFinishCoSi implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        ModelData.clearState(currentNode.getId(), tx);
+        clearState(currentNode.getId(), tx);
         switch (type) {
             case INTRA_SHARD_PREPARE:
                 new ShardLeaderStartCoSi(tx, CoSiType.INTRA_SHARD_COMMIT).runOn(currentNode);
@@ -51,8 +52,8 @@ public class ShardLeaderFinishCoSi implements NodeAction {
             case INTRA_SHARD_COMMIT:
             case INPUT_INVALID_PROOF:
             case OUTPUT_COMMIT:
-                int shardId = ModelData.node2Shard.get(currentNode.getId());
-                currentNode.sendMessage(ModelData.ClientAccessPoint.get(tx),
+                int shardId = node2Shard.get(currentNode.getId());
+                currentNode.sendMessage(ClientAccessPoint.get(tx),
                         new ReturnCoSiToClient(tx, type, shardId), 555);
         }
     }
@@ -81,7 +82,7 @@ class LocallyCommitTransactionImpl implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final Set<TxInput> utxoSet = ModelData.utxoSetOfNode(currentNode.getId());
+        final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
         tx.inputs.forEach(utxoSet::remove);
         utxoSet.addAll(tx.outputs);
     }
@@ -109,7 +110,7 @@ class LocallyLockInputsImpl implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final Set<TxInput> utxoSet = ModelData.utxoSetOfNode(currentNode.getId());
+        final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
         tx.inputs.forEach(utxoSet::remove); // Only those in set will be removed
     }
 }
@@ -136,10 +137,10 @@ class LocallyUnlockInputsImpl implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final Set<TxInput> utxoSet = ModelData.utxoSetOfNode(currentNode.getId());
-        int shardId = ModelData.node2Shard.get(currentNode.getId());
+        final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
+        int shardId = node2Shard.get(currentNode.getId());
         for (TxInput input : tx.inputs)
-            if (ModelData.getShardId(input) == shardId)
+            if (getShardId(input) == shardId)
                 utxoSet.add(input);
     }
 }
@@ -166,10 +167,10 @@ class LocallyAddOutputsImpl implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final Set<TxInput> utxoSet = ModelData.utxoSetOfNode(currentNode.getId());
-        int shardId = ModelData.node2Shard.get(currentNode.getId());
+        final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
+        int shardId = node2Shard.get(currentNode.getId());
         for (TxInput output : tx.outputs)
-            if (ModelData.getShardId(output) == shardId)
+            if (getShardId(output) == shardId)
                 utxoSet.add(output);
     }
 }

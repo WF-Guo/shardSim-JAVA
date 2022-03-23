@@ -1,11 +1,14 @@
 package edu.pku.infosec.customized.detail;
 
-import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.customized.NodeSigningState;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
+
+import java.util.Set;
+
+import static edu.pku.infosec.customized.ModelData.*;
 
 public class JudgeToSignOrNot implements NodeAction {
     private final TxInfo tx;
@@ -21,17 +24,17 @@ public class JudgeToSignOrNot implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        int shardId = ModelData.node2Shard.get(currentNode.getId());
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        int shardId = node2Shard.get(currentNode.getId());
+        final NodeSigningState state = getState(currentNode.getId(), tx);
+        final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
         switch (type) {
             case INTRA_SHARD_PREPARE:
             case INPUT_LOCK_PREPARE:
                 state.admitted = true;
-                if (ModelData.maliciousNodes.contains(currentNode.getId()))
+                if (maliciousNodes.contains(currentNode.getId()))
                     break;
                 for (TxInput input : tx.inputs) {
-                    if (ModelData.getShardId(input) == shardId &&
-                            !ModelData.utxoSetOfNode(currentNode.getId()).contains(input)) {
+                    if (getShardId(input) == shardId && !utxoSet.contains(input)) {
                         state.admitted = false;
                         break;
                     }
@@ -39,11 +42,10 @@ public class JudgeToSignOrNot implements NodeAction {
                 break;
             case INPUT_INVALID_PROOF:
                 state.admitted = false;
-                if (ModelData.maliciousNodes.contains(currentNode.getId()))
+                if (maliciousNodes.contains(currentNode.getId()))
                     break;
                 for (TxInput input : tx.inputs) {
-                    if (ModelData.getShardId(input) == shardId &&
-                            !ModelData.utxoSetOfNode(currentNode.getId()).contains(input)) {
+                    if (getShardId(input) == shardId && !utxoSet.contains(input)) {
                         state.admitted = true;
                         break;
                     }

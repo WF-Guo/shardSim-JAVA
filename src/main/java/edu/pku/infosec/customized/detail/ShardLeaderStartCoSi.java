@@ -1,10 +1,15 @@
 package edu.pku.infosec.customized.detail;
 
-import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.customized.NodeSigningState;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
+import edu.pku.infosec.transaction.TxInput;
+
+import java.util.Set;
+
+import static edu.pku.infosec.customized.ModelData.*;
+
 
 public class ShardLeaderStartCoSi implements NodeAction {
     private final TxInfo tx;
@@ -17,9 +22,9 @@ public class ShardLeaderStartCoSi implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        final NodeSigningState state = getState(currentNode.getId(), tx);
         state.replyCounter = state.acceptCounter = 0;
-        for (Integer groupLeader : ModelData.shardLeader2GroupLeaders.getGroup(currentNode.getId())) {
+        for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(currentNode.getId())) {
             currentNode.sendMessage(groupLeader, new GroupLeaderGetAnnouncement(tx, type), 555);
         }
         currentNode.stayBusy(
@@ -44,9 +49,9 @@ class GroupLeaderGetAnnouncement implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        final NodeSigningState state = getState(currentNode.getId(), tx);
         state.replyCounter = state.acceptCounter = 0;
-        for (Integer member : ModelData.groupLeader2Members.getGroup(currentNode.getId())) {
+        for (Integer member : groupLeader2Members.getGroup(currentNode.getId())) {
             currentNode.sendMessage(member, new MemberGetAnnouncement(tx, type), 555);
         }
         currentNode.stayBusy(
@@ -96,7 +101,7 @@ class MemberVoteFor implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         currentNode.sendMessage(
-                ModelData.node2GroupLeader.get(currentNode.getId()),
+                node2GroupLeader.get(currentNode.getId()),
                 new GroupLeaderCollectVote(tx, type, approval),
                 555
         );
@@ -116,13 +121,13 @@ class GroupLeaderCollectVote implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        final NodeSigningState state = getState(currentNode.getId(), tx);
         if (approval)
             state.acceptCounter += 1;
         state.replyCounter += 1;
-        int groupSize = ModelData.groupLeader2GroupSize.get(currentNode.getId());
+        int groupSize = groupLeader2GroupSize.get(currentNode.getId());
         if (state.replyCounter >= groupSize)
-            currentNode.sendMessage(ModelData.groupLeader2ShardLeader.get(currentNode.getId()),
+            currentNode.sendMessage(groupLeader2ShardLeader.get(currentNode.getId()),
                     new ShardLeaderCollectVotes(tx, type, state.acceptCounter, state.replyCounter),
                     555
             );
@@ -143,10 +148,10 @@ class ShardLeaderCollectVotes implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = ModelData.getState(currentNode.getId(), tx);
+        final NodeSigningState state = getState(currentNode.getId(), tx);
         state.acceptCounter += acceptCnt;
         state.replyCounter += replyCnt;
-        int shardSize = ModelData.shardLeader2ShardSize.get(currentNode.getId());
+        int shardSize = shardLeader2ShardSize.get(currentNode.getId());
         if (state.replyCounter >= shardSize) {
             if (state.acceptCounter * 3 > shardSize * 2) {
                 currentNode.stayBusy(555, new ShardLeaderStartChallenge(tx, type));
@@ -169,6 +174,6 @@ class DiscardTransaction implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        ModelData.clearState(currentNode.getId(), tx);
+        clearState(currentNode.getId(), tx);
     }
 }
