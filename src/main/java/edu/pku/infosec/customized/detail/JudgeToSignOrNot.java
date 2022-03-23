@@ -27,6 +27,7 @@ public class JudgeToSignOrNot implements NodeAction {
         int shardId = node2Shard.get(currentNode.getId());
         final NodeSigningState state = getState(currentNode.getId(), tx);
         final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
+        final Set<TxInput> uncommittedInputs = uncommittedInputsOnNode.getGroup(currentNode.getId());
         switch (type) {
             case INTRA_SHARD_PREPARE:
             case INPUT_LOCK_PREPARE:
@@ -34,9 +35,14 @@ public class JudgeToSignOrNot implements NodeAction {
                 if (maliciousNodes.contains(currentNode.getId()))
                     break;
                 for (TxInput input : tx.inputs) {
-                    if (getShardId(input) == shardId && !utxoSet.contains(input)) {
+                    if (getShardId(input) == shardId && (!utxoSet.contains(input) || uncommittedInputs.contains(input))) {
                         state.admitted = false;
                         break;
+                    }
+                }
+                for (TxInput input : tx.inputs) {
+                    if (getShardId(input) == shardId) {
+                        uncommittedInputs.add(input);
                     }
                 }
                 break;

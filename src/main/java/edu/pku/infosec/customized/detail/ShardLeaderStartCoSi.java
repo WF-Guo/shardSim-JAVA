@@ -174,6 +174,16 @@ class DiscardTransaction implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+        final int shardId = node2Shard.get(currentNode.getId());
+        final Set<TxInput> uncommittedInputs = uncommittedInputsOnNode.getGroup(currentNode.getId());
+        final NodeSigningState state = getState(currentNode.getId(), tx);
+        if (state.admitted) {
+            for (TxInput input : tx.inputs) {
+                if (getShardId(input) == shardId) {
+                    uncommittedInputs.remove(input);
+                }
+            }
+        }
         clearState(currentNode.getId(), tx);
     }
 }

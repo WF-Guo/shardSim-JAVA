@@ -27,6 +27,7 @@ public class ModelData {
     public static final GroupedSet<TxInfo, Integer> OSSet = new GroupedSet<>();
     public static final GroupedSet<TxInfo, Integer> RejectingISs = new GroupedSet<>();
     public static final GroupedSet<Integer, TxInput> utxoSetOnNode = new GroupedSet<>();
+    public static final GroupedSet<Integer, TxInput> uncommittedInputsOnNode = new GroupedSet<>();
     private static final Map<Integer, Map<TxInfo, NodeSigningState>> txProc_base = new HashMap<>();
     // Constant
     public static int nodeNum;
