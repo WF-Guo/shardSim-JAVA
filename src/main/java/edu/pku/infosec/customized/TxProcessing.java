@@ -57,7 +57,7 @@ public class TxProcessing implements NodeAction {
         }
 
         currentNode.sendToVirtualShardLeader(minContainShard, new PreprepareVerify(txinfo),
-                txinfo.inputs.size() * 48 + txinfo.outputs.size() * 8 + 20);
+                txinfo.inputs.size() * 148 + txinfo.outputs.size() * 34 + 10);
     }
 }
 
@@ -95,12 +95,11 @@ class PreprepareFoward implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        int sons = currentNode.sendToTreeSons(new PreprepareVerify(txinfo), txinfo.inputs.size() * 48 +
-                txinfo.outputs.size() * 8 + 20);
+        int sons = currentNode.sendToTreeSons(new PreprepareVerify(txinfo), txinfo.inputs.size() * 148 +
+                txinfo.outputs.size() * 34 + 10);
         if (sons == 0) { // already leaf
             currentNode.sendToTreeParent(
-                    new PreprepareReturn(currentNode.verificationCnt.get(txinfo.id), txinfo),
-                    txinfo.inputs.size() * 48 + txinfo.outputs.size() * 8 + 21 + 64);
+                    new PreprepareReturn(currentNode.verificationCnt.get(txinfo.id), txinfo), 34 + 33 + 72);
             currentNode.verificationCnt.remove(txinfo.id);
         } else
             currentNode.sonWaitCnt.put(txinfo.id, sons);
@@ -123,8 +122,7 @@ class PreprepareReturn implements NodeAction {
         currentNode.verificationCnt.put(tid, newCnt);
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PreprepareReturn(newCnt, tx),
-                    tx.inputs.size() * 48 + tx.outputs.size() * 8 + 21 + 64 * newCnt);
+            int parent = currentNode.sendToTreeParent(new PreprepareReturn(newCnt, tx),33 + 72 + 33 * newCnt);
             currentNode.sonWaitCnt.remove(tid);
             currentNode.verificationCnt.remove(tid);
             if (parent == 0) { // already root
@@ -132,16 +130,14 @@ class PreprepareReturn implements NodeAction {
                         .size() * 2 / 3;
                 if (newCnt > threshold) {
                     currentNode.verificationCnt.put(tx.id, 1);
-                    int sons = currentNode.sendToTreeSons(new Prepare(newCnt, tx),
-                            tx.inputs.size() * 48 + tx.outputs.size() * 8 + 20 + 64 * newCnt);
+                    int sons = currentNode.sendToTreeSons(new Prepare(newCnt, tx),33 + 72 + 33 * newCnt);
                     currentNode.sonWaitCnt.put(tx.id, sons);
                 } else {
                     // consensus not pass, unlock & terminate
                     for (TxInput input : tx.inputs) {
                         ModelData.unlockUTXO(input, tx.id);
                     }
-                    currentNode.sendToTreeSons(new Abort(newCnt, tx),
-                            tx.inputs.size() * 48 + tx.outputs.size() * 8 + 20 + 64 * newCnt);
+                    currentNode.sendToTreeSons(new Abort(newCnt, tx),33 + 72 + 33);
                 }
             }
         } else
@@ -160,8 +156,7 @@ class Abort implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        currentNode.sendToTreeSons(new Abort(pass, tx), tx.inputs.size() * 48 +
-                tx.outputs.size() * 8 + 20 + pass * 64);
+        currentNode.sendToTreeSons(new Abort(pass, tx), 33 + 105);
         // TODO: how long it takes to abort?
     }
 }
@@ -183,11 +178,9 @@ class Prepare implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         currentNode.verificationCnt.put(tx.id, 1);
-        int sons = currentNode.sendToTreeSons(new Prepare(tx, pass), tx.inputs.size() * 48 +
-                tx.outputs.size() * 8 + 20 + pass * 64);
+        int sons = currentNode.sendToTreeSons(new Prepare(tx, pass),33 + 72 + pass * 33);
         if (sons == 0) { // already leaf
-            currentNode.sendToTreeParent(new PrepareReturn(1, tx),
-                    tx.inputs.size() * 48 + tx.outputs.size() * 8 + 21 + 64);
+            currentNode.sendToTreeParent(new PrepareReturn(1, tx),33 + 72 + 33);
             currentNode.verificationCnt.remove(tx.id);
         } else
             currentNode.sonWaitCnt.put(tx.id, sons);
@@ -210,8 +203,7 @@ class PrepareReturn implements NodeAction {
         currentNode.verificationCnt.put(tid, newCnt);
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PrepareReturn(pass, tx), tx.inputs.size() * 48
-                    + tx.outputs.size() * 8 + 21 + pass * 64);
+            int parent = currentNode.sendToTreeParent(new PrepareReturn(pass, tx), 33 + 72 + pass * 33);
             currentNode.sonWaitCnt.remove(tid);
             currentNode.verificationCnt.remove(tid);
             if (parent == 0) { // already root
@@ -234,8 +226,7 @@ class PrepareReturn implements NodeAction {
                 int outputShard = (int) tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToActualShard(shard, new Commit(tx),
-                            32 + tx.inputs.size() * 48 + tx.outputs.size() * 8 + 21 + 64 * newCnt);
+                    currentNode.sendToActualShard(shard, new Commit(tx), 33 + 72 + 33 * newCnt);
                 }
             }
         } else
