@@ -48,11 +48,11 @@ public class TxProcessing implements NodeAction {
                 // the size is set to txInfo(x + 16) + inputNum(4) + inputNum * input(12)
                 currentNode.sendToOverlapLeader(firstShard, secondShard,
                         new PreprepareVerify(new VerificationInfo(txInfo, inputsToVerify, firstShard, secondShard)),
-                        txInfo.inputs.size() * 48 + txInfo.outputs.size() * 8 + 20 + inputsToVerify.size() * 12);
+                        txInfo.inputs.size() * 148 + txInfo.outputs.size() * 34 + 10);
             } else {
                 currentNode.sendToOverlapLeader(firstShard, firstShard,
                         new PreprepareVerify(new VerificationInfo(txInfo, inputsToVerify, firstShard, firstShard)),
-                        txInfo.inputs.size() * 48 + txInfo.outputs.size() * 8 + 20 + inputsToVerify.size() * 12);
+                        txInfo.inputs.size() * 148 + txInfo.outputs.size() * 34 + 10);
             }
         }
     }
@@ -116,16 +116,11 @@ class PreprepareFoward implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        int sons = currentNode.sendToTreeSons(new PreprepareVerify(consensusParam), consensusParam.tx.inputs.size() * 48 +
-                consensusParam.tx.outputs.size() * 8 + 20 + consensusParam.inputs.size() * 12);
+        int sons = currentNode.sendToTreeSons(new PreprepareVerify(consensusParam),
+                consensusParam.tx.inputs.size() * 148 + consensusParam.tx.outputs.size() * 34 + 10);
         if (sons == 0) { // already leaf
-            currentNode.sendToTreeParent(
-                    new PreprepareReturn(
-                            new VerificationResult(currentNode.verificationCnt.get(consensusParam.tx.id), consensusParam)
-                    ),
-                    consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputs.size() * 8 + 21 +
-                            consensusParam.inputs.size() * 12 + 64
-            );
+            currentNode.sendToTreeParent(new PreprepareReturn(new VerificationResult(currentNode.verificationCnt
+                    .get(consensusParam.tx.id), consensusParam)), 33 + 33 + 72);
             currentNode.verificationCnt.remove(consensusParam.tx.id);
         } else
             currentNode.sonWaitCnt.put(consensusParam.tx.id, sons);
@@ -147,8 +142,7 @@ class PreprepareReturn implements NodeAction {
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
             int parent = currentNode.sendToTreeParent(new PreprepareReturn(new VerificationResult(
-                    newCnt, result.vi)), result.vi.tx.inputs.size() * 48 + result.vi.tx.outputs.size() * 8 + 21 +
-                    result.vi.inputs.size() * 12 + 64 * newCnt);
+                    newCnt, result.vi)), 33 + 72 + 33 * newCnt);
             currentNode.sonWaitCnt.remove(tid);
             currentNode.verificationCnt.remove(tid);
             if (parent == 0) { // already root
@@ -156,8 +150,7 @@ class PreprepareReturn implements NodeAction {
                         .get(currentNode.getId())).size() * 2 / 3;
                 if (newCnt > threshold) {
                     currentNode.verificationCnt.put(result.vi.tx.id, 1);
-                    int sons = currentNode.sendToTreeSons(new Prepare(result), result.vi.tx.inputs.size() * 48 +
-                            result.vi.tx.outputs.size() * 8 + 20 + result.vi.inputs.size() * 12 + 64 * newCnt);
+                    int sons = currentNode.sendToTreeSons(new Prepare(result), 33 + 72 + 33 * newCnt);
                     currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
                 } else {
                     // send to all related shards a result 0
@@ -170,8 +163,7 @@ class PreprepareReturn implements NodeAction {
                     involvedShards.add(outputShard);
                     for (int shard : involvedShards) {
                         currentNode.sendToOriginalShard(shard, new CheckCommit(new VerificationResult(0, result.vi)),
-                                64 + result.vi.tx.inputs.size() * 48
-                                        + result.vi.tx.outputs.size() * 8 + 21 + result.vi.inputs.size() * 12 + 64 * threshold);
+                                33 + 72 + 33);
                     }
                 }
             }
@@ -190,11 +182,9 @@ class Prepare implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         currentNode.verificationCnt.put(result.vi.tx.id, 1);
-        int sons = currentNode.sendToTreeSons(new Prepare(result), result.vi.tx.inputs.size() * 48 +
-                result.vi.tx.outputs.size() * 8 + 20 + result.vi.inputs.size() * 12 + 64 * result.pass);
+        int sons = currentNode.sendToTreeSons(new Prepare(result), 33 + 72 + 33 * result.pass);
         if (sons == 0) { // already leaf
-            currentNode.sendToTreeParent(new PrepareReturn(result), result.vi.tx.inputs.size() * 48 +
-                    result.vi.tx.outputs.size() * 8 + 21 + result.vi.inputs.size() * 12 + 64);
+            currentNode.sendToTreeParent(new PrepareReturn(result), 33 + 72 + 33);
             currentNode.verificationCnt.remove(result.vi.tx.id);
         } else
             currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
@@ -215,8 +205,7 @@ class PrepareReturn implements NodeAction {
         currentNode.verificationCnt.put(tid, newCnt);
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PrepareReturn(result), result.vi.tx.inputs.size() * 48
-                    + result.vi.tx.outputs.size() * 8 + 21 + result.vi.inputs.size() * 12 + 64 * newCnt);
+            int parent = currentNode.sendToTreeParent(new PrepareReturn(result), 33 + 72 + 33 * newCnt);
             currentNode.sonWaitCnt.remove(tid);
             currentNode.verificationCnt.remove(tid);
             if (parent == 0) { // already root
@@ -240,8 +229,8 @@ class PrepareReturn implements NodeAction {
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
                     currentNode.sendToOriginalShard(shard, new CheckCommit(new VerificationResult(1, result.vi)),
-                            32 + result.vi.tx.inputs.size() * 48 + result.vi.tx.outputs.size() * 8
-                                    + 21 + result.vi.inputs.size() * 12 + 64 * newCnt);
+                            result.vi.tx.inputs.size() * 148 + result.vi.tx.outputs.size() * 34
+                                    + 11 + 72 + 33 * newCnt);
                 }
             }
         } else
@@ -376,7 +365,7 @@ class Alert implements NodeAction {
             if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
                 currentNode.sendToHalfOriginalShard(responsibleShard, result.vi.tx.hashCode(),
                         new ReCheck(new RecheckInfo(result.vi.tx, input, currentNode.getId())),
-                        result.vi.tx.inputs.size() * 48 + result.vi.tx.outputs.size() * 8 + 44);
+                        result.vi.tx.inputs.size() * 148 + result.vi.tx.outputs.size() * 34 + 105);
                 return;
             }
         }
@@ -420,7 +409,7 @@ class VoteForPass implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         currentNode.sendMessage(consensusParam.leader, new CollectRecheck(new RecheckResult(false, consensusParam)),
-                45 + consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputs.size() * 8);
+                33 + 33 + 72);
     }
 }
 
@@ -434,7 +423,7 @@ class VoteForRollBack implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         currentNode.sendMessage(consensusParam.leader, new CollectRecheck(new RecheckResult(true, consensusParam)),
-                45 + consensusParam.tx.inputs.size() * 48 + consensusParam.tx.outputs.size() * 8);
+                33 + 33 + 72);
     }
 }
 
@@ -481,8 +470,7 @@ class CollectRecheck implements NodeAction {
                 int outputShard = (int) result.ri.tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToOriginalShard(shard, new RollBack(),
-                            65 + result.ri.tx.inputs.size() * 48 + result.ri.tx.outputs.size() * 8);
+                    currentNode.sendToOriginalShard(shard, new RollBack(), 32 + newRollBackCnt * 105);
                 }
                 return;
             }
