@@ -32,7 +32,7 @@ public class ShardLeaderStartCoSi implements NodeAction {
                 tx, type,
                 new ShardLeaderCollectVotes(tx, type, 1, 1),
                 new ShardLeaderCollectVotes(tx, type, 0, 1)
-        );
+        ).runOn(currentNode);
     }
 }
 
@@ -57,7 +57,7 @@ class GroupLeaderGetAnnouncement implements NodeAction {
                 tx, type,
                 new GroupLeaderCollectVote(tx, type, true),
                 new GroupLeaderCollectVote(tx, type, false)
-        );
+        ).runOn(currentNode);
     }
 }
 
@@ -119,12 +119,13 @@ class GroupLeaderCollectVote implements NodeAction {
             state.acceptCounter += 1;
         state.replyCounter += 1;
         int groupSize = groupLeader2GroupSize.get(currentNode.getId());
-        if (state.replyCounter >= groupSize)
+        if (state.replyCounter >= groupSize) {
             currentNode.stayBusy(
                     ECDSA_POINT_ADD_TIME * state.acceptCounter + // aggregate
                             (state.acceptCounter * HASH_SIZE + ECDSA_POINT_SIZE) * BYTE_HASH_TIME, // merkel
                     new GroupLeaderAggregateCommits(tx, type)
             );
+        }
     }
 }
 
