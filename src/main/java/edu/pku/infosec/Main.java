@@ -51,6 +51,7 @@ public class Main {
         }
         TxGenScheduler.generate(network.externalNode, config.getJSONObject("transactions"));
         EventDriver.start();
+        System.out.println("Transactions committed: " + TxStat.processedNum());
         System.out.println("Throughput:" + TxStat.throughput());
         System.out.println("Latency:" + TxStat.averageLatency());
         final List<Double> loads = network.listNodeLoads();
