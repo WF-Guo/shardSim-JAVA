@@ -47,9 +47,11 @@ public class JudgeToSignOrNot implements NodeAction {
                         }
                     }
                 }
-                for (TxInput input : tx.inputs) {
-                    if (getShardId(input) == shardId) {
-                        uncommittedInputs.add(input);
+                if(state.admitted) {
+                    for (TxInput input : tx.inputs) {
+                        if (getShardId(input) == shardId) {
+                            uncommittedInputs.add(input);
+                        }
                     }
                 }
                 break;
