@@ -58,11 +58,12 @@ public class Main {
             total += load;
             max = Math.max(max, load);
             min = Math.min(min, load);
-            System.out.println(load);
         }
         double average = total / nodeNum, variance = 0;
         System.out.println("Average Load: " + average);
-        System.out.println("Load Range: " + (max - min));
+        System.out.println("Time past: " + EventDriver.getCurrentTime());
+        System.out.println("Max Load: " + max);
+        System.out.println("min Load: " + min);
         for (double load : loads) {
             variance += Math.pow(load - average, 2.0);
         }
