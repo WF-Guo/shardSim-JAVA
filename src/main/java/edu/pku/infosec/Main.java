@@ -2,7 +2,6 @@ package edu.pku.infosec;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.JSONReader;
 import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.customized.MyNetwork;
 import edu.pku.infosec.event.EventDriver;
@@ -13,7 +12,6 @@ import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
 
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
 
