@@ -2,6 +2,7 @@ package edu.pku.infosec;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.JSONReader;
 import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.customized.MyNetwork;
 import edu.pku.infosec.event.EventDriver;
@@ -11,10 +12,10 @@ import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
 
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
 
 public class Main {
     public static void main(String[] args) {
@@ -22,17 +23,23 @@ public class Main {
             System.err.println("Usage: java --Xms32000m -Xmx48000m -jar shardSim.jar <ConfigFile>");
             return;
         }
-        Properties properties = new Properties();
+        JSONObject config;
         try {
-            properties.load(new FileReader(args[0]));
+            FileInputStream inputStream = new FileInputStream(args[0]);
+            int fileLength = inputStream.available();
+            byte[] fileContent = new byte[fileLength];
+            int readChar = inputStream.read(fileContent);
+            assert readChar == fileLength;
+            inputStream.close();
+            config = JSON.parseObject(new String(fileContent));
         } catch (IOException ioException) {
             System.err.println("Fail to load config");
             return;
         }
-        int nodeNum = Integer.parseInt(properties.getProperty("nodeNumber"));
-        boolean limitBandwidth = Boolean.parseBoolean(properties.getProperty("limitBandwidth"));
-        int externalLatency = Integer.parseInt(properties.getProperty("externalLatency"));
-        JSONObject otherConfig = JSON.parseObject(properties.getProperty("model"));
+        int nodeNum = config.getInteger("nodeNumber");
+        boolean limitBandwidth = config.getBoolean("limitBandwidth");
+        int externalLatency = config.getInteger("externalLatency");
+        JSONObject otherConfig = config.getJSONObject("model");
         Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);
         network.calcPath();
         // Initializing utxo set
@@ -42,7 +49,7 @@ public class Main {
             TxStat.confirm(coinbase);
             ModelData.addInitUTXO(new TxInput(coinbase.id, 0));
         }
-        TxGenScheduler.generate(network.externalNode, JSON.parseObject(properties.getProperty("transactions")));
+        TxGenScheduler.generate(network.externalNode, config.getJSONObject("transactions"));
         EventDriver.start();
         System.out.println("Throughput:" + TxStat.throughput());
         System.out.println("Latency:" + TxStat.averageLatency());
