@@ -4,11 +4,11 @@
 
 `main`:网络配置、交易处理逻辑、配置文件都为空白，实现新模型请基于此branch新建一个branch
 
-`example_singleNode`：一个极为简单的使用样例，配置文件`sample.properties`位于项目根目录下
+`example_singleNode`：一个极为简单的使用样例，配置文件`sample.json`位于项目根目录下
 
 ## 配置文件
 
-通过在运行时增加一个参数，指定配置文件的路径，格式为properties
+通过在运行时增加一个参数，指定配置文件的路径，格式为JSON
 
 ### 必要的配置
 
