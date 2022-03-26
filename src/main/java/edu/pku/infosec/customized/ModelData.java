@@ -2,6 +2,7 @@ package edu.pku.infosec.customized;
 
 import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
+import edu.pku.infosec.util.Counter;
 import edu.pku.infosec.util.GroupedList;
 import edu.pku.infosec.util.GroupedSet;
 
@@ -23,6 +24,8 @@ public class ModelData {
     public static final Set<Integer> maliciousNodes = new HashSet<>();
     // Transaction Processing
     public static final Map<TxInfo, Integer> ClientAccessPoint = new HashMap<>();
+    public static final Counter<TxInfo> totalProofSize = new Counter<>();
+    public static final Map<TxInfo, Integer> rejectProofSize = new HashMap<>();
     public static final GroupedSet<TxInfo, Integer> ISSet = new GroupedSet<>();
     public static final GroupedSet<TxInfo, Integer> OSSet = new GroupedSet<>();
     public static final GroupedSet<TxInfo, Integer> RejectingISs = new GroupedSet<>();
@@ -30,18 +33,26 @@ public class ModelData {
     public static final GroupedSet<Integer, TxInput> uncommittedInputsOnNode = new GroupedSet<>();
     private static final Map<Integer, Map<TxInfo, NodeSigningState>> txProc_base = new HashMap<>();
     // Constant
-    public static int nodeNum;
-    public static int shardNum;
-    public static double verificationTimePerInput;
-    public static double commitTimePerOutput;
-    public static double clientSigVerificationTime;
-    public static double commitTime;
+    public static int NODE_NUM;
+    public static int SHARD_NUM;
+    public static double UTXOSET_OP_TIME;
+    public static double OUTPUT_STORE_TIME;
+    public static double BYTE_HASH_TIME;
+    public static double ECDSA_POINT_MUL_TIME;
+    public static double ECDSA_POINT_ADD_TIME;
+    public static int INPUT_SIZE;
+    public static int OUTPUT_SIZE;
+    public static int TX_OVERHEAD_SIZE;
+    public static int ECDSA_NUMBER_SIZE;
+    public static int ECDSA_POINT_SIZE;
+    public static int HASH_SIZE;
+
 
     public static int getShardId(TxInput input) {
         int inputHash = input.hashCode();
         if (inputHash < 0)
             inputHash -= Integer.MIN_VALUE;
-        return inputHash % shardNum;
+        return inputHash % SHARD_NUM;
     }
 
     public static NodeSigningState getState(int nodeId, TxInfo tx) {

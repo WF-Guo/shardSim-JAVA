@@ -26,4 +26,8 @@ public class Counter<T> {
     public Set<T> keySet() {
         return map.keySet();
     }
+
+    public void clear(T item) {
+        map.remove(item);
+    }
 }

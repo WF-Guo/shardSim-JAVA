@@ -14,9 +14,19 @@ public class MyNetwork extends Network {
     public MyNetwork(int size, boolean limitBandwidth, int externalLatency, JSONObject modelConfig) {
         super(size, limitBandwidth, externalLatency);
         Random random = new Random();
-        nodeNum = size;
-        shardNum = modelConfig.getInteger("shardNum");
+        NODE_NUM = size;
+        SHARD_NUM = modelConfig.getInteger("shardNum");
         int maliciousNodeNum = modelConfig.getInteger("maliciousNodeNum");
+        UTXOSET_OP_TIME = modelConfig.getDouble("utxoOpTime");
+        BYTE_HASH_TIME = modelConfig.getDouble("hashTimePerByte");
+        ECDSA_POINT_MUL_TIME = modelConfig.getDouble("ECDSAPointMulTime");
+        ECDSA_POINT_ADD_TIME = modelConfig.getDouble("ECDSAPointAddTime");
+        INPUT_SIZE = modelConfig.getInteger("sizePerInput");
+        OUTPUT_SIZE = modelConfig.getInteger("sizePerOutput");
+        TX_OVERHEAD_SIZE = modelConfig.getInteger("txOverhead");
+        ECDSA_NUMBER_SIZE = modelConfig.getInteger("ECDSANumberSize");
+        ECDSA_POINT_SIZE = modelConfig.getInteger("ECDSAPointSize");
+        HASH_SIZE = modelConfig.getInteger("hashSize");
 
         // Generate a random permutation
         List<Integer> permutationList = new ArrayList<>();
@@ -28,13 +38,13 @@ public class MyNetwork extends Network {
 
         // Initialize shards
         int shardBeginIndex = 0;
-        for (int shardId = 0; shardId < shardNum; shardId++) {
+        for (int shardId = 0; shardId < SHARD_NUM; shardId++) {
             int shardSize = 0;
             // Let the first be leader
             int shardLeader = permutation[shardBeginIndex];
             shard2Leader.put(shardId, shardLeader);
             // Put nodes into shards evenly
-            for (int i = shardBeginIndex; i < size && i * shardNum < size * (shardId + 1); i++) {
+            for (int i = shardBeginIndex; i < size && i * SHARD_NUM < size * (shardId + 1); i++) {
                 node2Shard.put(permutation[i], shardId);
                 shardSize += 1;
             }

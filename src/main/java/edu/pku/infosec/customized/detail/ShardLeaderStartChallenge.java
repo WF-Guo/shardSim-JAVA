@@ -23,7 +23,7 @@ public class ShardLeaderStartChallenge implements NodeAction {
         if (state.admitted)
             state.replyCounter++;
         for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(currentNode.getId())) {
-            currentNode.sendMessage(groupLeader, new GroupLeaderGetChallenge(tx, type), 555);
+            currentNode.sendMessage(groupLeader, new GroupLeaderGetChallenge(tx, type), 2 * HASH_SIZE + 1);
         }
     }
 }
@@ -40,11 +40,12 @@ class GroupLeaderGetChallenge implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         final NodeSigningState state = getState(currentNode.getId(), tx);
+        final int messageSize = HASH_SIZE;
         state.replyCounter = 0;
         if (state.admitted)
             state.replyCounter++;
         for (Integer member : groupLeader2Members.getGroup(currentNode.getId())) {
-            currentNode.sendMessage(member, new MemberGetChallenge(tx, type), 555);
+            currentNode.sendMessage(member, new MemberGetChallenge(tx, type), 2 * HASH_SIZE + 1);
         }
     }
 }
@@ -63,7 +64,7 @@ class MemberGetChallenge implements NodeAction {
         final NodeSigningState state = getState(currentNode.getId(), tx);
         if (state.admitted)
             currentNode.sendMessage(node2GroupLeader.get(currentNode.getId()),
-                    new GroupLeaderCollectCoSi(tx, type), 555);
+                    new GroupLeaderCollectCoSi(tx, type), HASH_SIZE + 1 + ECDSA_NUMBER_SIZE);
     }
 }
 
@@ -81,29 +82,12 @@ class GroupLeaderCollectCoSi implements NodeAction {
         final NodeSigningState state = getState(currentNode.getId(), tx);
         state.replyCounter += 1;
         if (state.replyCounter == state.acceptCounter && state.acceptCounter > 0) {
-            currentNode.stayBusy(555, new GroupLeaderCommitCoSi(tx, type));
+            currentNode.sendMessage(groupLeader2ShardLeader.get(currentNode.getId()),
+                    new ShardLeaderCollectCoSi(tx, type, state.replyCounter), HASH_SIZE + 1 + ECDSA_NUMBER_SIZE);
+            clearState(currentNode.getId(), tx);
         }
     }
 }
-
-class GroupLeaderCommitCoSi implements NodeAction {
-    private final TxInfo tx;
-    private final CoSiType type;
-
-    public GroupLeaderCommitCoSi(TxInfo tx, CoSiType type) {
-        this.tx = tx;
-        this.type = type;
-    }
-
-    @Override
-    public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode.getId(), tx);
-        currentNode.sendMessage(groupLeader2ShardLeader.get(currentNode.getId()),
-                new ShardLeaderCollectCoSi(tx, type, state.replyCounter), 555);
-        clearState(currentNode.getId(), tx);
-    }
-}
-
 
 class ShardLeaderCollectCoSi implements NodeAction {
     private final TxInfo tx;
@@ -121,7 +105,10 @@ class ShardLeaderCollectCoSi implements NodeAction {
         NodeSigningState state = getState(currentNode.getId(), tx);
         state.replyCounter += replyCnt;
         if (state.replyCounter >= state.acceptCounter)
-            currentNode.stayBusy(555, new ShardLeaderFinishCoSi(tx, type));
+            currentNode.stayBusy(
+                    ECDSA_POINT_MUL_TIME * 2 + ECDSA_POINT_ADD_TIME,
+                    new ShardLeaderFinishCoSi(tx, type)
+            );
     }
 }
 

@@ -28,6 +28,8 @@ public class JudgeToSignOrNot implements NodeAction {
         final NodeSigningState state = getState(currentNode.getId(), tx);
         final Set<TxInput> utxoSet = utxoSetOnNode.getGroup(currentNode.getId());
         final Set<TxInput> uncommittedInputs = uncommittedInputsOnNode.getGroup(currentNode.getId());
+        final int txSize = tx.inputs.size() * INPUT_SIZE + tx.outputs.size() * OUTPUT_SIZE + TX_OVERHEAD_SIZE;
+        double timeCost = 0;
         switch (type) {
             case INTRA_SHARD_PREPARE:
             case INPUT_LOCK_PREPARE:
@@ -35,9 +37,14 @@ public class JudgeToSignOrNot implements NodeAction {
                 if (maliciousNodes.contains(currentNode.getId()))
                     break;
                 for (TxInput input : tx.inputs) {
-                    if (getShardId(input) == shardId && (!utxoSet.contains(input) || uncommittedInputs.contains(input))) {
-                        state.admitted = false;
-                        break;
+                    if (getShardId(input) == shardId) {
+                        timeCost += UTXOSET_OP_TIME +
+                                BYTE_HASH_TIME * (txSize + ECDSA_POINT_SIZE) + // c=hash(m|R)
+                                2 * ECDSA_POINT_MUL_TIME + ECDSA_POINT_ADD_TIME; // cX + sG
+                        if (!utxoSet.contains(input) || uncommittedInputs.contains(input)) {
+                            state.admitted = false;
+                            break;
+                        }
                     }
                 }
                 for (TxInput input : tx.inputs) {
@@ -51,9 +58,12 @@ public class JudgeToSignOrNot implements NodeAction {
                 if (maliciousNodes.contains(currentNode.getId()))
                     break;
                 for (TxInput input : tx.inputs) {
-                    if (getShardId(input) == shardId && !utxoSet.contains(input)) {
-                        state.admitted = true;
-                        break;
+                    if (getShardId(input) == shardId) {
+                        timeCost += UTXOSET_OP_TIME;
+                        if(!utxoSet.contains(input)) {
+                            state.admitted = true;
+                            break;
+                        }
                     }
                 }
                 break;
@@ -67,8 +77,8 @@ public class JudgeToSignOrNot implements NodeAction {
                 break;
         }
         if (state.admitted)
-            actionWhenYes.runOn(currentNode);
+            currentNode.stayBusy(timeCost, actionWhenYes);
         else
-            actionWhenNo.runOn(currentNode);
+            currentNode.stayBusy(timeCost, actionWhenNo);
     }
 }

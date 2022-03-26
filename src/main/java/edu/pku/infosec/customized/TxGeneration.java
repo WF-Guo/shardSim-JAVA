@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSONObject;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
-import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
 import edu.pku.infosec.util.RandomChoose;
 
@@ -32,7 +31,7 @@ public class TxGeneration implements NodeAction {
             tx.inputs.add(TxStat.getRandomUTXO());
         tx.setOutputNum(outputNum);
         TxStat.submit(tx);
-        currentNode.sendIn(random.nextInt(ModelData.nodeNum), new TxProcessing(tx));
+        currentNode.sendIn(random.nextInt(ModelData.NODE_NUM), new TxProcessing(tx));
         if (random.nextDouble() < DSAttackRate && tx.inputs.size() > 0) {
             TxInfo attack = new TxInfo();
             attack.inputs.add(tx.inputs.get(0));
@@ -40,7 +39,7 @@ public class TxGeneration implements NodeAction {
                 attack.inputs.add(TxStat.getRandomUTXO());
             attack.setOutputNum(outputNum);
             TxStat.submit(attack);
-            currentNode.sendIn(random.nextInt(ModelData.nodeNum), new TxProcessing(attack));
+            currentNode.sendIn(random.nextInt(ModelData.NODE_NUM), new TxProcessing(attack));
         }
     }
 }

@@ -23,6 +23,7 @@ public class TxProcessing implements NodeAction {
     public void runOn(Node currentNode) {
         ClientAccessPoint.put(txInfo, currentNode.getId());
         Set<Integer> shardSet = new HashSet<>();
+        int txSize = txInfo.inputs.size() * 148 + txInfo.outputs.size() * 34 + 10;
         for (TxInput input : txInfo.inputs) {
             ISSet.put(txInfo, getShardId(input));
         }
@@ -34,9 +35,9 @@ public class TxProcessing implements NodeAction {
         for (Integer shard : ISSet.getGroup(txInfo)) {
             Integer shardLeader = shard2Leader.get(shard);
             if (shardSet.size() == 1)
-                currentNode.sendMessage(shardLeader, new ShardLeaderStartCoSi(txInfo, CoSiType.INTRA_SHARD_PREPARE), 555);
+                currentNode.sendMessage(shardLeader, new ShardLeaderStartCoSi(txInfo, CoSiType.INTRA_SHARD_PREPARE), txSize);
             else
-                currentNode.sendMessage(shardLeader, new ShardLeaderStartCoSi(txInfo, CoSiType.INPUT_LOCK_PREPARE), 555);
+                currentNode.sendMessage(shardLeader, new ShardLeaderStartCoSi(txInfo, CoSiType.INPUT_LOCK_PREPARE), txSize);
         }
     }
 }
