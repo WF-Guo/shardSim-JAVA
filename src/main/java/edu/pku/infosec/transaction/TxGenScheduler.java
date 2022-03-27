@@ -11,9 +11,9 @@ import java.util.Timer;
 public class TxGenScheduler {
     public static void generate(Node client, JSONObject txConfig) {
         int number = txConfig.getInteger("number");
-        int interval = txConfig.getInteger("interval");
+        double interval = txConfig.getDouble("interval");
         TxGeneration generator = new TxGeneration(txConfig);
-        long time = 0;
+        double time = 0;
         for (int i = 0; i < number; i++) {
             EventDriver.insertEvent(time, client, generator);
             time += interval;

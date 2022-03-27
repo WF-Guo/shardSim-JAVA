@@ -1,5 +1,7 @@
 package edu.pku.infosec.util;
 
+import java.util.Stack;
+
 public class SplayTree {
     TreeNode root = null;
 
@@ -73,33 +75,46 @@ class TreeNode {
     }
 
     TreeNode splayUpKthInSubtree(int k) {
-        int lSize = this.leftSize();
-        int d1;
-        if (k <= lSize)
-            d1 = 0;
-        else if (k == lSize + 1)
-            return this;
-        else {
-            k -= lSize + 1;
-            d1 = 1;
+        class LayerData {
+            public final TreeNode p;
+            public final int dir;
+
+            public LayerData(TreeNode p, int dir) {
+                this.p = p;
+                this.dir = dir;
+            }
         }
-        TreeNode p = ch[d1];
-        lSize = p.leftSize();
-        int d2;
-        if (k <= lSize)
-            d2 = 0;
-        else if (k == lSize + 1) {
-            return rotate(d1 ^ 1);
-        } else {
-            k -= lSize + 1;
-            d2 = 1;
+        Stack<LayerData> stack = new Stack<>();
+        TreeNode currentNode = this;
+        int lSize = currentNode.leftSize();
+        while (k != lSize + 1) {
+            if (k <= lSize) {
+                stack.add(new LayerData(currentNode, 0));
+                currentNode = currentNode.ch[0];
+                lSize = currentNode.leftSize();
+            } else {
+                k -= lSize + 1;
+                stack.add(new LayerData(currentNode, 1));
+                currentNode = currentNode.ch[1];
+                lSize = currentNode.leftSize();
+            }
         }
-        p.ch[d2] = p.ch[d2].splayUpKthInSubtree(k);
-        if (d1 == d2)
-            return rotate(d1 ^ 1).rotate(d2 ^ 1);
-        else {
-            ch[d1] = ch[d1].rotate(d2 ^ 1);
-            return rotate(d1 ^ 1);
+        while(stack.size() >= 2) {
+            final LayerData l2 = stack.pop();
+            final LayerData l1 = stack.pop();
+            l2.p.ch[l2.dir] = currentNode;
+            if(l1.dir == l2.dir)
+                currentNode = l1.p.rotate(l1.dir ^ 1).rotate(l2.dir ^ 1);
+            else {
+                l1.p.ch[l1.dir] = l2.p.rotate(l2.dir ^ 1);
+                currentNode = l1.p.rotate(l1.dir ^ 1);
+            }
         }
+        if (!stack.isEmpty()) {
+            final LayerData l = stack.pop();
+            l.p.ch[l.dir] = currentNode;
+            currentNode = l.p.rotate(l.dir ^ 1);
+        }
+        return currentNode;
     }
 }

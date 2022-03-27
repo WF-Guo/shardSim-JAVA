@@ -15,6 +15,7 @@
 - `nodeNumber`：（整数）用于初始化网络中的节点
 - `limitBandwidth`：（true/false）是否根据带宽带宽限制阻塞消息
 - `externalLantency`：（整数）用户等外部网络实体到任意网络中节点的双向延迟（注：因为用户的网络位置不固定，模拟节点和用户之间的带宽堵塞是没必要的）
+- `initUTXO`：（整数）系统启动时生成的UTXO数量
 - `transactions`：（JSON）中
   - `number`：（整数）生成的交易数量
   - `interval`：（整数）交易生成的间隔
@@ -43,7 +44,7 @@
 
 如果需要每个节点一套数据，可以开个数组
 
-在调用`TxGeneration`生成正常交易前，框架会创建10000个`coinbase`交易以初始化UTXO池。为了让模型同步这些合法的UTXO，框架会对每个初始UTXO调用`addInitUTXO`，请妥善实现该函数
+在调用`TxGeneration`生成正常交易前，框架会按配置创建`initUTXO`个`coinbase`交易以初始化UTXO池。为了让模型同步这些合法的UTXO，框架会对每个初始UTXO调用`addInitUTXO`，请妥善实现该函数
 
 ## `TxProcessing`
 

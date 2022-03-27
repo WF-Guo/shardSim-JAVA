@@ -37,11 +37,14 @@ public class Main {
         int nodeNum = config.getInteger("nodeNumber");
         boolean limitBandwidth = config.getBoolean("limitBandwidth");
         int externalLatency = config.getInteger("externalLatency");
+        Integer initialUTXONum = config.getInteger("initUTXO");
+        if(initialUTXONum == null)
+            initialUTXONum = 10000;
         JSONObject otherConfig = config.getJSONObject("model");
         Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);
         network.calcPath();
         // Initializing utxo set
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < initialUTXONum; i++) {
             TxInfo coinbase = new TxInfo();
             coinbase.setOutputNum(1);
             TxStat.confirm(coinbase);
@@ -61,7 +64,9 @@ public class Main {
         }
         double average = total / nodeNum, variance = 0;
         System.out.println("Average Load: " + average);
-        System.out.println("Load Range: " + (max - min));
+        System.out.println("Time past: " + EventDriver.getCurrentTime());
+        System.out.println("Max Load: " + max);
+        System.out.println("min Load: " + min);
         for (double load : loads) {
             variance += Math.pow(load - average, 2.0);
         }
