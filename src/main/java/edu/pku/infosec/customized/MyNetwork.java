@@ -19,8 +19,19 @@ public class MyNetwork extends Network {
         // Use addEdge(u,v,latency,bandwidth) to create a directed connection between (u,v)
         shardNum = modelConfig.getInteger("shardNum");
         ModelData.verificationTime = modelConfig.getDouble("VerificationTime");
+        ModelData.UTXORemoveTime = modelConfig.getDouble("UTXORemoveTime");
+        ModelData.UTXOAddTime = modelConfig.getDouble("UTXOAddTime");
         ModelData.maliciousNum = modelConfig.getInteger("MaliciousNum");
         ModelData.shardNum = shardNum;
+        ModelData.hashTimePerByte = modelConfig.getDouble("hashTimePerByte");
+        ModelData.ECDSAPointMulTime = modelConfig.getDouble("ECDSAPointMulTime");
+        ModelData.ECDSAPointAddTime = modelConfig.getDouble("ECDSAPointAddTime");
+        ModelData.sizePerInput = modelConfig.getInteger("sizePerInput");
+        ModelData.sizePerOutput = modelConfig.getInteger("sizePerOutput");
+        ModelData.txOverhead = modelConfig.getInteger("txOverhead");
+        ModelData.ECDSANumberSize = modelConfig.getInteger("ECDSANumberSize");
+        ModelData.ECDSAPointSize = modelConfig.getInteger("ECDSAPointSize");
+        ModelData.hashSize = modelConfig.getInteger("hashSize");
         // generate the random permutation, where each segment of around 2N/m(m+1) nodes is an overlapping shard
         List<Integer> permutation = new ArrayList<>();
         for (int i = 0; i < size; ++i)

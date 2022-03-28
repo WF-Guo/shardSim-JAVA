@@ -6,7 +6,6 @@ import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
 
-import java.awt.*;
 import java.util.*;
 import java.util.List;
 
@@ -48,11 +47,13 @@ public class TxProcessing implements NodeAction {
                 // the size is set to txInfo(x + 16) + inputNum(4) + inputNum * input(12)
                 currentNode.sendToOverlapLeader(firstShard, secondShard,
                         new PreprepareVerify(new VerificationInfo(txInfo, inputsToVerify, firstShard, secondShard)),
-                        txInfo.inputs.size() * 148 + txInfo.outputs.size() * 34 + 10);
+                        txInfo.inputs.size() * ModelData.sizePerInput +
+                                txInfo.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead);
             } else {
                 currentNode.sendToOverlapLeader(firstShard, firstShard,
                         new PreprepareVerify(new VerificationInfo(txInfo, inputsToVerify, firstShard, firstShard)),
-                        txInfo.inputs.size() * 148 + txInfo.outputs.size() * 34 + 10);
+                        txInfo.inputs.size() * ModelData.sizePerInput +
+                                txInfo.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead);
             }
         }
     }
@@ -86,23 +87,25 @@ class PreprepareVerify implements NodeAction {
             for (TxInput input : consensusParam.inputs) {
                 verifyCnt++;
                 if (!ModelData.verifyUTXO(input, consensusParam.tx.id)) {
-                    currentNode.verificationCnt.put(consensusParam.tx.id, 0);
-                    currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new PreprepareFoward(consensusParam));
+                    currentNode.obsentCnt.put(consensusParam.tx.id, 1);
+                    currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
+                            ModelData.ECDSAPointAddTime) * verifyCnt, new PreprepareFoward(consensusParam));
                     return;
                 }
             }
         }
-        currentNode.verificationCnt.put(consensusParam.tx.id, 1);
-        currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new PreprepareFoward(consensusParam));
+        currentNode.obsentCnt.put(consensusParam.tx.id, 0);
+        currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
+                ModelData.ECDSAPointAddTime) * verifyCnt, new PreprepareFoward(consensusParam));
     }
 }
 
 class VerificationResult {
     public final VerificationInfo vi;
-    public final int pass;
+    public final int cnt;
 
-    public VerificationResult(int pass, VerificationInfo vi) {
-        this.pass = pass;
+    public VerificationResult(int cnt, VerificationInfo vi) {
+        this.cnt = cnt;
         this.vi = vi;
     }
 }
@@ -117,13 +120,35 @@ class PreprepareFoward implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         int sons = currentNode.sendToTreeSons(new PreprepareVerify(consensusParam),
-                consensusParam.tx.inputs.size() * 148 + consensusParam.tx.outputs.size() * 34 + 10);
+                consensusParam.tx.inputs.size() * ModelData.sizePerInput +
+                        consensusParam.tx.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead);
         if (sons == 0) { // already leaf
-            currentNode.sendToTreeParent(new PreprepareReturn(new VerificationResult(currentNode.verificationCnt
-                    .get(consensusParam.tx.id), consensusParam)), 33 + 33 + 72);
-            currentNode.verificationCnt.remove(consensusParam.tx.id);
+            currentNode.sendToTreeParent(new PreprepareMerge(new VerificationResult(currentNode.obsentCnt
+                    .get(consensusParam.tx.id), consensusParam)), (1 +
+                    currentNode.obsentCnt.get(consensusParam.tx.id)) * ModelData.ECDSAPointSize);
+            currentNode.obsentCnt.remove(consensusParam.tx.id);
         } else
             currentNode.sonWaitCnt.put(consensusParam.tx.id, sons);
+    }
+}
+
+class PreprepareMerge implements NodeAction {
+    private final VerificationResult result;
+
+    public PreprepareMerge(VerificationResult result) {
+        this.result = result;
+    }
+
+    @Override
+    public void runOn(Node currentNode) {
+        long tid = result.vi.tx.id;
+        int newCnt = currentNode.obsentCnt.get(tid) + result.cnt;
+        currentNode.obsentCnt.put(tid, newCnt);
+        int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
+        if (sonWaitCnt == 1) {
+            currentNode.stayBusy(2 * ModelData.ECDSAPointAddTime, new PreprepareReturn(result));
+        } else
+            currentNode.sonWaitCnt.put(tid, sonWaitCnt - 1);
     }
 }
 
@@ -137,38 +162,49 @@ class PreprepareReturn implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         long tid = result.vi.tx.id;
-        int newCnt = currentNode.verificationCnt.get(tid) + result.pass;
-        currentNode.verificationCnt.put(tid, newCnt);
-        int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
-        if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PreprepareReturn(new VerificationResult(
-                    newCnt, result.vi)), 33 + 72 + 33 * newCnt);
-            currentNode.sonWaitCnt.remove(tid);
-            currentNode.verificationCnt.remove(tid);
-            if (parent == 0) { // already root
-                int threshold = ModelData.overlapShards.get(ModelData.originalShardIndex
-                        .get(currentNode.getId())).size() * 2 / 3;
-                if (newCnt > threshold) {
-                    currentNode.verificationCnt.put(result.vi.tx.id, 1);
-                    int sons = currentNode.sendToTreeSons(new Prepare(result), 33 + 72 + 33 * newCnt);
-                    currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
-                } else {
-                    // send to all related shards a result 0
-                    Set<Integer> involvedShards = new HashSet<>();
-                    for (TxInput input : result.vi.tx.inputs) {
-                        int responsibleShard = (int) input.tid % ModelData.shardNum;
-                        involvedShards.add(responsibleShard);
-                    }
-                    int outputShard = (int) result.vi.tx.id % ModelData.shardNum;
-                    involvedShards.add(outputShard);
-                    for (int shard : involvedShards) {
-                        currentNode.sendToOriginalShard(shard, new CheckCommit(new VerificationResult(0, result.vi)),
-                                33 + 72 + 33);
-                    }
+        int newCnt = currentNode.obsentCnt.get(tid);
+
+        int parent = currentNode.sendToTreeParent(new PreprepareReturn(new VerificationResult(
+                newCnt, result.vi)), (1 + newCnt) * ModelData.ECDSAPointSize);
+        currentNode.sonWaitCnt.remove(tid);
+        currentNode.obsentCnt.remove(tid);
+        if (parent == 0) { // already root
+            int threshold = ModelData.overlapShards.get(ModelData.originalShardIndex
+                        .get(currentNode.getId())).size() / 3;
+            if (newCnt < threshold) {
+                currentNode.stayBusy(ModelData.hashTimePerByte * (result.vi.tx.inputs.size() *
+                        ModelData.sizePerInput + result.vi.tx.outputs.size() * ModelData.sizePerOutput +
+                        ModelData.txOverhead + ModelData.hashSize),
+                        new StartPrepare(new VerificationResult(newCnt, result.vi)));
+            } else {
+                // send to all related shards a result 0
+                Set<Integer> involvedShards = new HashSet<>();
+                for (TxInput input : result.vi.tx.inputs) {
+                    int responsibleShard = (int) input.tid % ModelData.shardNum;
+                    involvedShards.add(responsibleShard);
+                }
+                int outputShard = (int) result.vi.tx.id % ModelData.shardNum;
+                involvedShards.add(outputShard);
+                for (int shard : involvedShards) {
+                    currentNode.sendToOriginalShard(shard, new CheckCommit(new VerificationResult(0, result.vi)),
+                            ModelData.hashSize + 1 + (1 + newCnt) * ModelData.ECDSAPointSize);
                 }
             }
-        } else
-            currentNode.sonWaitCnt.put(tid, sonWaitCnt - 1);
+        }
+    }
+}
+
+class StartPrepare implements NodeAction {
+    private final VerificationResult result;
+
+    public StartPrepare(VerificationResult result) {
+        this.result = result;
+    }
+
+    @Override
+    public void runOn(Node currentNode) {
+        int sons = currentNode.sendToTreeSons(new Prepare(result), ModelData.hashSize);
+        currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
     }
 }
 
@@ -181,11 +217,9 @@ class Prepare implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        currentNode.verificationCnt.put(result.vi.tx.id, 1);
-        int sons = currentNode.sendToTreeSons(new Prepare(result), 33 + 72 + 33 * result.pass);
+        int sons = currentNode.sendToTreeSons(new Prepare(result), ModelData.hashSize);
         if (sons == 0) { // already leaf
-            currentNode.sendToTreeParent(new PrepareReturn(result), 33 + 72 + 33);
-            currentNode.verificationCnt.remove(result.vi.tx.id);
+            currentNode.sendToTreeParent(new PrepareReturn(result), ModelData.ECDSANumberSize);
         } else
             currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
     }
@@ -201,13 +235,10 @@ class PrepareReturn implements NodeAction {
     @Override
     public void runOn(Node currentNode) {
         long tid = result.vi.tx.id;
-        int newCnt = currentNode.verificationCnt.get(tid) + result.pass;
-        currentNode.verificationCnt.put(tid, newCnt);
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PrepareReturn(result), 33 + 72 + 33 * newCnt);
+            int parent = currentNode.sendToTreeParent(new PrepareReturn(result), ModelData.ECDSANumberSize);
             currentNode.sonWaitCnt.remove(tid);
-            currentNode.verificationCnt.remove(tid);
             if (parent == 0) { // already root
 
                 // for statistics
@@ -229,8 +260,9 @@ class PrepareReturn implements NodeAction {
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
                     currentNode.sendToOriginalShard(shard, new CheckCommit(new VerificationResult(1, result.vi)),
-                            result.vi.tx.inputs.size() * 148 + result.vi.tx.outputs.size() * 34
-                                    + 11 + 72 + 33 * newCnt);
+                            1 + result.vi.tx.inputs.size() * ModelData.sizePerInput +
+                                    result.vi.tx.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead +
+                                    ModelData.ECDSANumberSize + result.cnt * ModelData.ECDSAPointSize);
                 }
             }
         } else
@@ -257,7 +289,7 @@ class CheckCommit implements NodeAction {
             return;
 
         // TODO: how can we count a transaction as commited by the system?
-        if (result.pass == 1) {
+        if (result.cnt == 1) {
             // first check again
 
             shardPair nodeOriginalShards = ModelData.originalShardIndex.get(currentNode.getId());
@@ -279,18 +311,26 @@ class CheckCommit implements NodeAction {
             if (secondShard == -1)
                 secondShard = firstShard;
             if (!Objects.equals(nodeOriginalShards, new shardPair(firstShard, secondShard)))
-                currentNode.stayBusy(1, new CheckCommitPass(result));
+                currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime,
+                        new CheckCommitPass(result));
             else if (alert)
-                currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new Alert(result));
+                currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime +
+                        (ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime) *
+                                verifyCnt + ModelData.hashTimePerByte * (result.vi.tx.inputs.size() *
+                        ModelData.sizePerInput + result.vi.tx.outputs.size() * ModelData.sizePerOutput +
+                        ModelData.txOverhead + 1), new Alert(result));
             else
-                currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new CheckCommitPass(result));
+                currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime +
+                        (ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime) *
+                                verifyCnt, new CheckCommitPass(result));
         } else {
             // abort situation 1
-            // TODO abort time
             ModelData.collectedVerification.remove(result.vi.tx.id);
             for (TxInput input : result.vi.tx.inputs) {
                 ModelData.unlockUTXO(input, result.vi.tx.id);
             }
+            // abort time
+            currentNode.stayBusy(ModelData.UTXORemoveTime * result.vi.tx.inputs.size(), node->{});
         }
     }
 }
@@ -317,7 +357,9 @@ class CheckCommitPass implements NodeAction {
                     ModelData.addUTXO(new TxInput(result.vi.tx.id, i));
                 }
                 currentNode.sendOut(new Commit(result.vi.tx));
-                // TODO commit time?
+                // commit time?
+                currentNode.stayBusy(ModelData.UTXORemoveTime * result.vi.tx.inputs.size()
+                        + ModelData.UTXOAddTime * result.vi.tx.outputs.size(), node->{});
             }
         }
     }
@@ -332,7 +374,6 @@ class Commit implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        // TODO: May be rolled back, but the interface is not implemented
         TxStat.confirm(tx);
     }
 }
@@ -365,7 +406,9 @@ class Alert implements NodeAction {
             if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
                 currentNode.sendToHalfOriginalShard(responsibleShard, result.vi.tx.hashCode(),
                         new ReCheck(new RecheckInfo(result.vi.tx, input, currentNode.getId())),
-                        result.vi.tx.inputs.size() * 148 + result.vi.tx.outputs.size() * 34 + 105);
+                        result.vi.tx.inputs.size() * ModelData.sizePerInput + result.vi.tx.outputs.size() *
+                                ModelData.sizePerOutput + ModelData.txOverhead + 1 + ModelData.ECDSAPointSize +
+                        ModelData.ECDSANumberSize);
                 return;
             }
         }
@@ -383,9 +426,13 @@ class ReCheck implements NodeAction {
     public void runOn(Node currentNode) {
         TxInput input = consensusParam.input;
         if (ModelData.verifyUTXO(input, consensusParam.tx.id) || currentNode.getId() < ModelData.maliciousNum)
-            currentNode.stayBusy(ModelData.verificationTime, new VoteForPass(consensusParam));
+            currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
+                    ModelData.ECDSAPointAddTime) + ModelData.hashTimePerByte * (1 + ModelData.hashSize),
+                    new VoteForPass(consensusParam));
         else
-            currentNode.stayBusy(ModelData.verificationTime, new VoteForRollBack(consensusParam));
+            currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
+                    ModelData.ECDSAPointAddTime) + ModelData.hashTimePerByte * (1 + ModelData.hashSize),
+                    new VoteForRollBack(consensusParam));
     }
 }
 
@@ -408,8 +455,8 @@ class VoteForPass implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        currentNode.sendMessage(consensusParam.leader, new CollectRecheck(new RecheckResult(false, consensusParam)),
-                33 + 33 + 72);
+        currentNode.sendMessage(consensusParam.leader, new VerifyRecheck(new RecheckResult(false, consensusParam)),
+                ModelData.ECDSAPointSize * 2 + ModelData.ECDSANumberSize + 1 + ModelData.hashSize);
     }
 }
 
@@ -422,8 +469,22 @@ class VoteForRollBack implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        currentNode.sendMessage(consensusParam.leader, new CollectRecheck(new RecheckResult(true, consensusParam)),
-                33 + 33 + 72);
+        currentNode.sendMessage(consensusParam.leader, new VerifyRecheck(new RecheckResult(true, consensusParam)),
+                ModelData.ECDSAPointSize * 2 + ModelData.ECDSANumberSize + 1 + ModelData.hashSize);
+    }
+}
+
+class VerifyRecheck implements NodeAction {
+    private final RecheckResult result;
+
+    public VerifyRecheck(RecheckResult result) {
+        this.result = result;
+    }
+
+    @Override
+    public void runOn(Node currentNode) {
+        currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime,
+                new CollectRecheck(result));
     }
 }
 
@@ -470,7 +531,8 @@ class CollectRecheck implements NodeAction {
                 int outputShard = (int) result.ri.tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToOriginalShard(shard, new RollBack(), 32 + newRollBackCnt * 105);
+                    currentNode.sendToOriginalShard(shard, new RollBack(result.ri.tx), ModelData.hashSize +
+                            newRollBackCnt * (ModelData.ECDSAPointSize * 2 + ModelData.ECDSANumberSize));
                 }
                 return;
             }
@@ -487,16 +549,14 @@ class CollectRecheck implements NodeAction {
 }
 
 class RollBack implements NodeAction {
-    @Override
-    public void runOn(Node currentNode) {
-        // TODO: is 200ms a proper time?
-        currentNode.stayBusy(200, new RollBackAction());
-    }
-}
+    private final TxInfo tx;
 
-class RollBackAction implements NodeAction {
+    public RollBack(TxInfo tx) {
+        this.tx = tx;
+    }
     @Override
     public void runOn(Node currentNode) {
-        // TODO: do something
+        currentNode.stayBusy(tx.inputs.size() * ModelData.UTXOAddTime + tx.outputs.size() *
+                ModelData.UTXORemoveTime, node->{});
     }
 }
