@@ -73,4 +73,8 @@ public class TxStat {
         return n / time;
     }
 
+    public static int processedNum() {
+        return commitTime.size();
+    }
+
 }
