@@ -285,9 +285,6 @@ class CheckCommit implements NodeAction {
         }
         currentNode.receiveCommitSet.add(result.vi.tx.id);
 
-        if (!ModelData.collectedVerification.containsKey(result.vi.tx.id)) // already commited or aborted
-            return;
-
         // TODO: how can we count a transaction as commited by the system?
         if (result.cnt == 1) {
             // first check again
@@ -303,7 +300,7 @@ class CheckCommit implements NodeAction {
                 else if (firstShard != responsibleShard)
                     secondShard = responsibleShard;
                 verifyCnt++;
-                if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
+                if (!ModelData.verifyUTXO(input, result.vi.tx.id) && currentNode.getId() >= ModelData.maliciousNum) {
                     alert = true;
                     break;
                 }
@@ -356,7 +353,17 @@ class CheckCommitPass implements NodeAction {
                 for (int i = 0; i < result.vi.tx.outputs.size(); ++i) {
                     ModelData.addUTXO(new TxInput(result.vi.tx.id, i));
                 }
-                currentNode.sendOut(new Commit(result.vi.tx));
+
+                boolean canCommit = true;
+                for (TxInput input : result.vi.inputs) {
+                    if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
+                        canCommit = false;
+                        break;
+                    }
+                }
+                if (canCommit)
+                    currentNode.sendOut(new Commit(result.vi.tx));
+
                 // commit time?
                 currentNode.stayBusy(ModelData.UTXORemoveTime * result.vi.tx.inputs.size()
                         + ModelData.UTXOAddTime * result.vi.tx.outputs.size(), node->{});
