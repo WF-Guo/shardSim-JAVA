@@ -57,7 +57,8 @@ public class TxProcessing implements NodeAction {
         }
 
         currentNode.sendToVirtualShardLeader(minContainShard, new PreprepareVerify(txinfo),
-                txinfo.inputs.size() * 148 + txinfo.outputs.size() * 34 + 10);
+                txinfo.inputs.size() * ModelData.sizePerInput + txinfo.outputs.size() * ModelData.sizePerOutput +
+                        ModelData.txOverhead);
     }
 }
 
@@ -75,14 +76,16 @@ class PreprepareVerify implements NodeAction {
             for (TxInput input : txinfo.inputs) {
                 verifyCnt++;
                 if (!ModelData.verifyUTXO(input, txinfo.id)) {
-                    currentNode.verificationCnt.put(txinfo.id, 0);
-                    currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new PreprepareFoward(txinfo));
+                    currentNode.obsentCnt.put(txinfo.id, 1);
+                    currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
+                            ModelData.ECDSAPointAddTime) * verifyCnt, new PreprepareFoward(txinfo));
                     return;
                 }
             }
         }
-        currentNode.verificationCnt.put(txinfo.id, 1);
-        currentNode.stayBusy(ModelData.verificationTime * verifyCnt, new PreprepareFoward(txinfo));
+        currentNode.obsentCnt.put(txinfo.id, 0);
+        currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
+                ModelData.ECDSAPointAddTime) * verifyCnt, new PreprepareFoward(txinfo));
     }
 }
 
@@ -95,117 +98,141 @@ class PreprepareFoward implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        int sons = currentNode.sendToTreeSons(new PreprepareVerify(txinfo), txinfo.inputs.size() * 148 +
-                txinfo.outputs.size() * 34 + 10);
+        int sons = currentNode.sendToTreeSons(new PreprepareVerify(txinfo), txinfo.inputs.size() *
+                ModelData.sizePerInput + txinfo.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead);
         if (sons == 0) { // already leaf
             currentNode.sendToTreeParent(
-                    new PreprepareReturn(currentNode.verificationCnt.get(txinfo.id), txinfo), 34 + 33 + 72);
-            currentNode.verificationCnt.remove(txinfo.id);
+                    new PreprepareMerge(currentNode.obsentCnt.get(txinfo.id), txinfo), (1 +
+                            currentNode.obsentCnt.get(txinfo.id)) * ModelData.ECDSAPointSize);
+            currentNode.obsentCnt.remove(txinfo.id);
         } else
             currentNode.sonWaitCnt.put(txinfo.id, sons);
     }
 }
 
-class PreprepareReturn implements NodeAction {
-    private final int pass;
+class PreprepareMerge implements NodeAction {
+    private final int cnt;
     private final TxInfo tx;
 
-    public PreprepareReturn(int pass, TxInfo tx) {
-        this.pass = pass;
+    public PreprepareMerge(int cnt, TxInfo tx) {
+        this.cnt = cnt;
         this.tx = tx;
     }
 
     @Override
     public void runOn(Node currentNode) {
         long tid = tx.id;
-        int newCnt = currentNode.verificationCnt.get(tid) + pass;
-        currentNode.verificationCnt.put(tid, newCnt);
+        int newCnt = currentNode.obsentCnt.get(tid) + cnt;
+        currentNode.obsentCnt.put(tid, newCnt);
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PreprepareReturn(newCnt, tx),33 + 72 + 33 * newCnt);
-            currentNode.sonWaitCnt.remove(tid);
-            currentNode.verificationCnt.remove(tid);
-            if (parent == 0) { // already root
-                int threshold = ModelData.virtualShards.get(ModelData.virtualShardIndex.get(currentNode.getId()))
-                        .size() * 2 / 3;
-                if (newCnt > threshold) {
-                    currentNode.verificationCnt.put(tx.id, 1);
-                    int sons = currentNode.sendToTreeSons(new Prepare(newCnt, tx),33 + 72 + 33 * newCnt);
-                    currentNode.sonWaitCnt.put(tx.id, sons);
-                } else {
-                    // consensus not pass, unlock & terminate
-                    for (TxInput input : tx.inputs) {
-                        ModelData.unlockUTXO(input, tx.id);
-                    }
-                    currentNode.sendToTreeSons(new Abort(newCnt, tx),33 + 72 + 33);
-                }
-            }
+            currentNode.stayBusy(2 * ModelData.ECDSAPointAddTime, new PreprepareReturn(newCnt, tx));
         } else
             currentNode.sonWaitCnt.put(tid, sonWaitCnt - 1);
     }
 }
 
-class Abort implements NodeAction {
-    private final int pass;
+class PreprepareReturn implements NodeAction {
+    private final int cnt;
     private final TxInfo tx;
 
-    public Abort(int pass, TxInfo tx) {
-        this.pass = pass;
+    public PreprepareReturn(int cnt, TxInfo tx) {
+        this.cnt = cnt;
         this.tx = tx;
     }
 
     @Override
     public void runOn(Node currentNode) {
-        currentNode.sendToTreeSons(new Abort(pass, tx), 33 + 105);
+        long tid = tx.id;
+        int parent = currentNode.sendToTreeParent(new PreprepareMerge(cnt, tx),(1 + cnt) *
+                ModelData.ECDSAPointSize);
+        currentNode.sonWaitCnt.remove(tid);
+        currentNode.obsentCnt.remove(tid);
+        if (parent == 0) { // already root
+            int threshold = ModelData.virtualShards.get(ModelData.virtualShardIndex.get(currentNode.getId()))
+                    .size() / 3;
+            if (cnt < threshold) {
+                currentNode.stayBusy(ModelData.hashTimePerByte * (tx.inputs.size() *
+                                ModelData.sizePerInput + tx.outputs.size() * ModelData.sizePerOutput +
+                                ModelData.txOverhead + ModelData.hashSize), new StartPrepare(tx, cnt));
+            } else {
+                // consensus not pass, unlock & terminate
+                for (TxInput input : tx.inputs) {
+                    ModelData.unlockUTXO(input, tx.id);
+                }
+                currentNode.sendToTreeSons(new Abort(cnt, tx),1 + (1 + cnt) * ModelData.ECDSAPointSize);
+            }
+        }
+    }
+}
+
+class StartPrepare implements NodeAction {
+    private final TxInfo tx;
+    private final int cnt;
+
+    public StartPrepare(TxInfo tx, int cnt) {
+        this.tx = tx;
+        this.cnt = cnt;
+    }
+
+    @Override
+    public void runOn(Node currentNode) {
+        int sons = currentNode.sendToTreeSons(new Prepare(tx, cnt), ModelData.hashSize);
+        currentNode.sonWaitCnt.put(tx.id, sons);
+    }
+}
+
+class Abort implements NodeAction {
+    private final int cnt;
+    private final TxInfo tx;
+
+    public Abort(int cnt, TxInfo tx) {
+        this.cnt = cnt;
+        this.tx = tx;
+    }
+
+    @Override
+    public void runOn(Node currentNode) {
+        currentNode.sendToTreeSons(new Abort(cnt, tx), 1 + (1 + cnt) * ModelData.ECDSAPointSize);
         // TODO: how long it takes to abort?
     }
 }
 
 class Prepare implements NodeAction {
-    private final int pass;
     private final TxInfo tx;
+    private final int cnt;
 
-    public Prepare(int pass, TxInfo tx) {
-        this.pass = pass;
+    public Prepare(TxInfo tx, int cnt) {
         this.tx = tx;
-    }
-
-    public Prepare(TxInfo tx, int pass) {
-        this.tx = tx;
-        this.pass = pass;
+        this.cnt = cnt;
     }
 
     @Override
     public void runOn(Node currentNode) {
-        currentNode.verificationCnt.put(tx.id, 1);
-        int sons = currentNode.sendToTreeSons(new Prepare(tx, pass),33 + 72 + pass * 33);
+        int sons = currentNode.sendToTreeSons(new Prepare(tx, cnt),ModelData.hashSize);
         if (sons == 0) { // already leaf
-            currentNode.sendToTreeParent(new PrepareReturn(1, tx),33 + 72 + 33);
-            currentNode.verificationCnt.remove(tx.id);
+            currentNode.sendToTreeParent(new PrepareReturn(tx, cnt),ModelData.ECDSANumberSize);
         } else
             currentNode.sonWaitCnt.put(tx.id, sons);
     }
 }
 
 class PrepareReturn implements NodeAction {
-    private final int pass;
     private final TxInfo tx;
+    private final int cnt;
 
-    public PrepareReturn(int pass, TxInfo tx) {
-        this.pass = pass;
+    public PrepareReturn(TxInfo tx, int cnt) {
         this.tx = tx;
+        this.cnt = cnt;
     }
 
     @Override
     public void runOn(Node currentNode) {
         long tid = tx.id;
-        int newCnt = currentNode.verificationCnt.get(tid) + pass;
-        currentNode.verificationCnt.put(tid, newCnt);
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
-            int parent = currentNode.sendToTreeParent(new PrepareReturn(pass, tx), 33 + 72 + pass * 33);
+            int parent = currentNode.sendToTreeParent(new PrepareReturn(tx, cnt), ModelData.ECDSANumberSize);
             currentNode.sonWaitCnt.remove(tid);
-            currentNode.verificationCnt.remove(tid);
             if (parent == 0) { // already root
 
                 // for statistics
@@ -226,7 +253,10 @@ class PrepareReturn implements NodeAction {
                 int outputShard = (int) tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToActualShard(shard, new Commit(tx), 33 + 72 + 33 * newCnt);
+                    currentNode.sendToActualShard(shard, new Commit(tx),
+                            1 + tx.inputs.size() * ModelData.sizePerInput + tx.outputs.size() *
+                                    ModelData.sizePerOutput + ModelData.txOverhead + ModelData.ECDSANumberSize +
+                                    cnt * ModelData.ECDSAPointSize);
                 }
             }
         } else
@@ -248,18 +278,14 @@ class Commit implements NodeAction {
             return;
         currentNode.receiveCommitSet.add(tx.id);
 
-        // TODO: add node commit time here
-
-        if (ModelData.commitList.contains(tx.id))
-            return;
-        ModelData.commitList.add(tx.id);
-
         for (TxInput input : tx.inputs) {
             ModelData.useUTXO(input);
         }
         for (TxInput output : tx.outputs) {
             ModelData.addUTXO(output);
         }
+        currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime +
+                ModelData.UTXORemoveTime * tx.inputs.size() + ModelData.UTXOAddTime * tx.outputs.size(), node->{});
         currentNode.sendOut(new ClientCommit(tx));
     }
 }

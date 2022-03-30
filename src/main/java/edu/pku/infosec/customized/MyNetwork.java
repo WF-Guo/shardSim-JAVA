@@ -25,6 +25,18 @@ public class MyNetwork extends Network {
         ModelData.verificationTime = modelConfig.getDouble("VerificationTime");
         ModelData.maliciousNum = modelConfig.getInteger("MaliciousNum");
         ModelData.shardNum = shardNum;
+
+        ModelData.UTXORemoveTime = modelConfig.getDouble("UTXORemoveTime");
+        ModelData.UTXOAddTime = modelConfig.getDouble("UTXOAddTime");
+        ModelData.hashTimePerByte = modelConfig.getDouble("hashTimePerByte");
+        ModelData.ECDSAPointMulTime = modelConfig.getDouble("ECDSAPointMulTime");
+        ModelData.ECDSAPointAddTime = modelConfig.getDouble("ECDSAPointAddTime");
+        ModelData.sizePerInput = modelConfig.getInteger("sizePerInput");
+        ModelData.sizePerOutput = modelConfig.getInteger("sizePerOutput");
+        ModelData.txOverhead = modelConfig.getInteger("txOverhead");
+        ModelData.ECDSANumberSize = modelConfig.getInteger("ECDSANumberSize");
+        ModelData.ECDSAPointSize = modelConfig.getInteger("ECDSAPointSize");
+        ModelData.hashSize = modelConfig.getInteger("hashSize");
         // note: basically overlapshard map nodes according to their round hash, here we use permutation for simplicity
         // using permutation results in more balanced node distribution, but should be close to hash when nodes are many
         List<Integer> permutation = new ArrayList<>();

@@ -5,6 +5,18 @@ import edu.pku.infosec.transaction.TxInput;
 import java.util.*;
 
 public class ModelData {
+    public  static double hashTimePerByte;
+    public  static double ECDSAPointMulTime;
+    public  static double ECDSAPointAddTime;
+    public  static int sizePerInput;
+    public  static int sizePerOutput;
+    public  static int txOverhead;
+    public  static int ECDSANumberSize;
+    public  static int ECDSAPointSize;
+    public  static int hashSize;
+    public  static double UTXORemoveTime;
+    public  static double UTXOAddTime;
+
     public static int nodeNum;
     public static int shardNum;
     public static double verificationTime;
@@ -16,7 +28,6 @@ public class ModelData {
     public static Map<Integer, Integer> shardParent;
     public static Map<Integer, Integer> virtualShardIndex;
     public static Map<Integer, List<Integer>> virtualShards;
-    public static Set<Long> commitList = new HashSet<>();
 
     private final static Set<TxInput> UTXO = new HashSet<>();
     private final static Map<TxInput, Long> lockedUTXO = new HashMap<>();

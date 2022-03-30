@@ -19,7 +19,7 @@ public class Node {
     public final Map<Long, Integer> rollBackSignatureCnt;
     public final Map<Long, Integer> rollBackCnt;
     public final Map<Long, Integer> sonWaitCnt;
-    public final Map<Long, Integer> verificationCnt;
+    public final Map<Long, Integer> obsentCnt;
     public final Set<Long> receiveCommitSet;
 
     Node(int id, Network network) {
@@ -27,7 +27,7 @@ public class Node {
         this.network = network;
         rollBackCnt = new HashMap<>();
         rollBackSignatureCnt = new HashMap<>();
-        verificationCnt= new HashMap<>();
+        obsentCnt= new HashMap<>();
         sonWaitCnt = new HashMap<>();
         receiveCommitSet = new HashSet<>();
     }
