@@ -164,7 +164,7 @@ class PreprepareReturn implements NodeAction {
         long tid = result.vi.tx.id;
         int newCnt = currentNode.obsentCnt.get(tid);
 
-        int parent = currentNode.sendToTreeParent(new PreprepareReturn(new VerificationResult(
+        int parent = currentNode.sendToTreeParent(new PreprepareMerge(new VerificationResult(
                 newCnt, result.vi)), (1 + newCnt) * ModelData.ECDSAPointSize);
         currentNode.sonWaitCnt.remove(tid);
         currentNode.obsentCnt.remove(tid);
