@@ -65,7 +65,7 @@ public class Node {
     {
         if(this.id == -1)
             throw new RuntimeException("sendToHalfOriginalShard() is for nodes");
-        ((MyNetwork) network).sendToHalfOriginalShard(id, hash, originalShard, receivingAction, size);
+        ((MyNetwork) network).sendToHalfOriginalShard(id, originalShard, hash, receivingAction, size);
     }
 
     public void sendToOriginalShard

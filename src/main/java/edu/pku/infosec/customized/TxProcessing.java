@@ -347,15 +347,9 @@ class CheckCommitPass implements NodeAction {
             ModelData.collectedVerification.get(result.vi.tx.id).addAll(result.vi.inputs);
             if (ModelData.collectedVerification.get(result.vi.tx.id).size() == result.vi.tx.inputs.size()) {
                 ModelData.collectedVerification.remove(result.vi.tx.id);
-                for (TxInput input : result.vi.tx.inputs) {
-                    ModelData.useUTXO(input);
-                }
-                for (int i = 0; i < result.vi.tx.outputs.size(); ++i) {
-                    ModelData.addUTXO(new TxInput(result.vi.tx.id, i));
-                }
 
                 boolean canCommit = true;
-                for (TxInput input : result.vi.inputs) {
+                for (TxInput input : result.vi.tx.inputs) {
                     if (!ModelData.verifyUTXO(input, result.vi.tx.id)) {
                         canCommit = false;
                         break;
@@ -363,6 +357,13 @@ class CheckCommitPass implements NodeAction {
                 }
                 if (canCommit)
                     currentNode.sendOut(new Commit(result.vi.tx));
+
+                for (TxInput input : result.vi.tx.inputs) {
+                    ModelData.useUTXO(input);
+                }
+                for (int i = 0; i < result.vi.tx.outputs.size(); ++i) {
+                    ModelData.addUTXO(new TxInput(result.vi.tx.id, i));
+                }
 
                 // commit time?
                 currentNode.stayBusy(ModelData.UTXORemoveTime * result.vi.tx.inputs.size()
@@ -505,6 +506,8 @@ class CollectRecheck implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+        if (!currentNode.rollBackSignatureCnt.containsKey(result.ri.tx.id))
+            return;
         int newSignatureCnt = currentNode.rollBackSignatureCnt.get(result.ri.tx.id) + 1;
         currentNode.rollBackSignatureCnt.put(result.ri.tx.id, newSignatureCnt);
         int responsibleShard = (int) result.ri.input.tid % ModelData.shardNum;
