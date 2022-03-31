@@ -22,8 +22,8 @@ public class MyNetwork extends Network {
         Random random = new Random(1453);
         // Use addEdge(u,v,latency,bandwidth) to create a directed connection between (u,v)
         shardNum = modelConfig.getInteger("shardNum"); // for overlapshard, shardNum is actual shard number (2^x)
-        ModelData.verificationTime = modelConfig.getDouble("VerificationTime");
-        ModelData.maliciousNum = modelConfig.getInteger("MaliciousNum");
+        ModelData.verificationTime = modelConfig.getDouble("verificationTime");
+        ModelData.maliciousNum = modelConfig.getInteger("maliciousNum");
         ModelData.shardNum = shardNum;
 
         ModelData.UTXORemoveTime = modelConfig.getDouble("UTXORemoveTime");
@@ -43,7 +43,7 @@ public class MyNetwork extends Network {
         for (int i = 0; i < size; ++i)
             permutation.add(i);
         Collections.shuffle(permutation);
-        int segment = size / (shardNum - 1) + 1, pos = 0;
+        int segment = size / (shardNum - 1), pos = 0;
         virtualShards = new HashMap<>();
         actualShards = new HashMap<>();
         virtualShardContainList = new HashMap<>();
@@ -68,20 +68,37 @@ public class MyNetwork extends Network {
             virtualShardContainList.put(shardId, new HashSet<>());
 
             List<Integer> nodeList = new ArrayList<>();
-            for (int k = pos; (k < pos + segment) && (k < size); ++k) {
-                nodeList.add(permutation.get(k));
-                virtualShardIndex.put(permutation.get(k), shardId);
+            if (shardIdQueue.size() == 0) {
+                for (int k = pos; k < size; ++k) {
+                    nodeList.add(permutation.get(k));
+                    virtualShardIndex.put(permutation.get(k), shardId);
+                }
+                // add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
+                for (int k = pos; k < size; ++k) {
+                    for (int l = k + 1; l < size; ++l) {
+                        if (l < pos + segment) {
+                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                        }
+                    }
+                }
             }
-            // add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
-            for (int k = pos; (k < pos + segment) && (k < size); ++k) {
-                for (int l = k + 1; l < size; ++l) {
-                    if (l < pos + segment) {
-                        addEdge(permutation.get(k), permutation.get(l), 100, 20972);
-                        addEdge(permutation.get(l), permutation.get(k), 100, 20972);
-                    } else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
-                    {
-                        addEdge(permutation.get(k), permutation.get(l), 100, 20972);
-                        addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+            else {
+                for (int k = pos; k < pos + segment; ++k) {
+                    nodeList.add(permutation.get(k));
+                    virtualShardIndex.put(permutation.get(k), shardId);
+                }
+                // add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
+                for (int k = pos; k < pos + segment; ++k) {
+                    for (int l = k + 1; l < size; ++l) {
+                        if (l < pos + segment) {
+                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                        } else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
+                        {
+                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                        }
                     }
                 }
             }
