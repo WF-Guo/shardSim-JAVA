@@ -18,10 +18,10 @@ public class MyNetwork extends Network {
         Random random = new Random(1453);
         // Use addEdge(u,v,latency,bandwidth) to create a directed connection between (u,v)
         shardNum = modelConfig.getInteger("shardNum");
-        ModelData.verificationTime = modelConfig.getDouble("VerificationTime");
+        ModelData.verificationTime = modelConfig.getDouble("verificationTime");
         ModelData.UTXORemoveTime = modelConfig.getDouble("UTXORemoveTime");
         ModelData.UTXOAddTime = modelConfig.getDouble("UTXOAddTime");
-        ModelData.maliciousNum = modelConfig.getInteger("MaliciousNum");
+        ModelData.maliciousNum = modelConfig.getInteger("maliciousNum");
         ModelData.shardNum = shardNum;
         ModelData.hashTimePerByte = modelConfig.getDouble("hashTimePerByte");
         ModelData.ECDSAPointMulTime = modelConfig.getDouble("ECDSAPointMulTime");
@@ -37,31 +37,43 @@ public class MyNetwork extends Network {
         for (int i = 0; i < size; ++i)
             permutation.add(i);
         Collections.shuffle(permutation);
-        int segment = 2 * size / (shardNum * (shardNum + 1)) + 1, pos = 0;
+        int segment = 2 * size / (shardNum * (shardNum + 1)), pos = 0;
         overlapShards = new HashMap<>();
         originalShardIndex = new HashMap<>();
         for (int i = 0; i < shardNum; ++i) {
             for (int j = i; j < shardNum; ++j) {
                 List<Integer> nodeList = new ArrayList<>();
-                for (int k = pos; (k < pos + segment) && (k < size); ++k) {
-                    nodeList.add(permutation.get(k));
-                    originalShardIndex.put(permutation.get(k), new shardPair(i, j));
-                }
-                // add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
-                for (int k = pos; (k < pos + segment) && (k < size); ++k)
-                    for (int l = k + 1; l < size; ++l)
-                    {
-                        if (l < pos + segment)
-                        {
-                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
-                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
-                        }
-                        else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
-                        {
+                if (i == shardNum - 1 && j == shardNum - 1) { // the last overlap shard
+                    for (int k = pos; k < size; ++k) {
+                        nodeList.add(permutation.get(k));
+                        originalShardIndex.put(permutation.get(k), new shardPair(i, j));
+                    }
+                    for (int k = pos; k < size; ++k) {
+                        for (int l = k + 1; l < size; ++l) {
                             addEdge(permutation.get(k), permutation.get(l), 100, 20972);
                             addEdge(permutation.get(l), permutation.get(k), 100, 20972);
                         }
                     }
+                }
+                else {
+                    for (int k = pos; k < pos + segment; ++k) {
+                        nodeList.add(permutation.get(k));
+                        originalShardIndex.put(permutation.get(k), new shardPair(i, j));
+                    }
+                    // add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
+                    for (int k = pos; k < pos + segment; ++k) {
+                        for (int l = k + 1; l < size; ++l) {
+                            if (l < pos + segment) {
+                                addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                                addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                            } else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
+                            {
+                                addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                                addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                            }
+                        }
+                    }
+                }
                 pos += segment;
                 overlapShards.put(new shardPair(i, j), nodeList);
             }
