@@ -18,6 +18,11 @@ public class TxProcessing implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+        /*
+        Date time = new Date();
+        ModelData.SYSTIME = time.getTime();
+         */
+
         //the receiving node forwards the transaction
         Map<Integer, ArrayList<TxInput>> shardsMapping = new HashMap<>();
         for (TxInput input : txInfo.inputs) {
@@ -56,6 +61,18 @@ public class TxProcessing implements NodeAction {
                                 txInfo.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead);
             }
         }
+
+        /*
+        if (currentNode.getId() == 233) {
+            System.out.println("in TxProcessing Time Used: " + (time.getTime() - ModelData.SYSTIME));
+            System.out.println("size:");
+            System.out.println("obsentCnt" + currentNode.obsentCnt.size());
+            System.out.println("rollBackSignatureCnt" + currentNode.rollBackSignatureCnt.size());
+            System.out.println("rollBackCnt" + currentNode.rollBackCnt.size());
+            System.out.println("sonWaitCnt" + currentNode.sonWaitCnt.size());
+            System.out.println("receiveCommitSet" + currentNode.receiveCommitSet.size());
+        }
+         */
     }
 }
 
@@ -82,6 +99,7 @@ class PreprepareVerify implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         int verifyCnt = 0;
         if (currentNode.getId() >= ModelData.maliciousNum) {
             for (TxInput input : consensusParam.inputs) {
@@ -119,6 +137,7 @@ class PreprepareFoward implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         int sons = currentNode.sendToTreeSons(new PreprepareVerify(consensusParam),
                 consensusParam.tx.inputs.size() * ModelData.sizePerInput +
                         consensusParam.tx.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead);
@@ -129,6 +148,7 @@ class PreprepareFoward implements NodeAction {
             currentNode.obsentCnt.remove(consensusParam.tx.id);
         } else
             currentNode.sonWaitCnt.put(consensusParam.tx.id, sons);
+
     }
 }
 
@@ -141,6 +161,7 @@ class PreprepareMerge implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         long tid = result.vi.tx.id;
         int newCnt = currentNode.obsentCnt.get(tid) + result.cnt;
         currentNode.obsentCnt.put(tid, newCnt);
@@ -149,6 +170,7 @@ class PreprepareMerge implements NodeAction {
             currentNode.stayBusy(2 * ModelData.ECDSAPointAddTime, new PreprepareReturn(result));
         } else
             currentNode.sonWaitCnt.put(tid, sonWaitCnt - 1);
+
     }
 }
 
@@ -161,6 +183,7 @@ class PreprepareReturn implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         long tid = result.vi.tx.id;
         int newCnt = currentNode.obsentCnt.get(tid);
 
@@ -191,6 +214,7 @@ class PreprepareReturn implements NodeAction {
                 }
             }
         }
+
     }
 }
 
@@ -203,8 +227,10 @@ class StartPrepare implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         int sons = currentNode.sendToTreeSons(new Prepare(result), ModelData.hashSize);
         currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
+
     }
 }
 
@@ -217,11 +243,13 @@ class Prepare implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         int sons = currentNode.sendToTreeSons(new Prepare(result), ModelData.hashSize);
         if (sons == 0) { // already leaf
             currentNode.sendToTreeParent(new PrepareReturn(result), ModelData.ECDSANumberSize);
         } else
             currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
+
     }
 }
 
@@ -234,6 +262,7 @@ class PrepareReturn implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         long tid = result.vi.tx.id;
         int sonWaitCnt = currentNode.sonWaitCnt.get(tid);
         if (sonWaitCnt == 1) {
@@ -267,6 +296,7 @@ class PrepareReturn implements NodeAction {
             }
         } else
             currentNode.sonWaitCnt.put(tid, sonWaitCnt - 1);
+
     }
 }
 
@@ -279,6 +309,7 @@ class CheckCommit implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         if (currentNode.receiveCommitSet.contains(result.vi.tx.id)) { // replicate message (at most once)
             currentNode.receiveCommitSet.remove(result.vi.tx.id);
             return;
@@ -300,7 +331,9 @@ class CheckCommit implements NodeAction {
                 else if (firstShard != responsibleShard)
                     secondShard = responsibleShard;
                 verifyCnt++;
-                if (!ModelData.verifyUTXO(input, result.vi.tx.id) && currentNode.getId() >= ModelData.maliciousNum) {
+                if ((!ModelData.verifyUTXO(input, result.vi.tx.id)) && currentNode.getId() >= ModelData.maliciousNum) {
+                    if (ModelData.CommittedTransactions.contains(result.vi.tx.id))
+                        return;
                     alert = true;
                     break;
                 }
@@ -329,6 +362,7 @@ class CheckCommit implements NodeAction {
             // abort time
             currentNode.stayBusy(ModelData.UTXORemoveTime * result.vi.tx.inputs.size(), node->{});
         }
+
     }
 }
 
@@ -355,14 +389,15 @@ class CheckCommitPass implements NodeAction {
                         break;
                     }
                 }
-                if (canCommit)
+                if (canCommit) {
+                    ModelData.CommittedTransactions.add(result.vi.tx.id);
+                    for (TxInput input : result.vi.tx.inputs) {
+                        ModelData.useUTXO(input);
+                    }
+                    for (int i = 0; i < result.vi.tx.outputs.size(); ++i) {
+                        ModelData.addUTXO(new TxInput(result.vi.tx.id, i));
+                    }
                     currentNode.sendOut(new Commit(result.vi.tx));
-
-                for (TxInput input : result.vi.tx.inputs) {
-                    ModelData.useUTXO(input);
-                }
-                for (int i = 0; i < result.vi.tx.outputs.size(); ++i) {
-                    ModelData.addUTXO(new TxInput(result.vi.tx.id, i));
                 }
 
                 // commit time?
@@ -370,6 +405,7 @@ class CheckCommitPass implements NodeAction {
                         + ModelData.UTXOAddTime * result.vi.tx.outputs.size(), node->{});
             }
         }
+
     }
 }
 
@@ -382,7 +418,9 @@ class Commit implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         TxStat.confirm(tx);
+
     }
 }
 
@@ -407,6 +445,7 @@ class Alert implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         currentNode.rollBackSignatureCnt.put(result.vi.tx.id, 0);
         currentNode.rollBackCnt.put(result.vi.tx.id, 0);
         for (TxInput input : result.vi.inputs) {
@@ -432,6 +471,7 @@ class ReCheck implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         TxInput input = consensusParam.input;
         if (ModelData.verifyUTXO(input, consensusParam.tx.id) || currentNode.getId() < ModelData.maliciousNum)
             currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
@@ -491,8 +531,10 @@ class VerifyRecheck implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime,
                 new CollectRecheck(result));
+
     }
 }
 
@@ -506,6 +548,7 @@ class CollectRecheck implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
         if (!currentNode.rollBackSignatureCnt.containsKey(result.ri.tx.id))
             return;
         int newSignatureCnt = currentNode.rollBackSignatureCnt.get(result.ri.tx.id) + 1;
