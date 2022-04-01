@@ -14,11 +14,15 @@ public class EventDriver {
     }
 
     public static void insertEvent(double timeToHappen, Node responsibleNode, NodeAction nodeAction) {
-        eventQueue.add(new Event(timeToHappen, responsibleNode, nodeAction));
+        eventQueue.add(new Event(timeToHappen, timeToHappen, responsibleNode, nodeAction));
+    }
+
+    public static void insertDelayedEvent(double timeToHappen, double originalTime, Node responsibleNode, NodeAction nodeAction) {
+        eventQueue.add(new Event(timeToHappen, originalTime, responsibleNode, nodeAction));
     }
 
     public static void start() {
-        while(!eventQueue.isEmpty()) {
+        while (!eventQueue.isEmpty()) {
             Event event = eventQueue.remove();
             currentTime = event.getTimeToHappen();
             event.happen();
@@ -28,12 +32,14 @@ public class EventDriver {
 
 
 class Event implements Comparable<Event> {
-    private double timeToHappen;
+    private final double timeToHappen;
+    private final double queueOrder;
     private final Node responsibleNode;
     private final NodeAction nodeAction;
 
-    Event(double timeToHappen, Node responsibleNode, NodeAction nodeAction) {
+    public Event(double timeToHappen, double queueOrder, Node responsibleNode, NodeAction nodeAction) {
         this.timeToHappen = timeToHappen;
+        this.queueOrder = queueOrder;
         this.responsibleNode = responsibleNode;
         this.nodeAction = nodeAction;
     }
@@ -43,16 +49,16 @@ class Event implements Comparable<Event> {
     }
 
     public void happen() {
-        if(responsibleNode.getId() != Network.EXTERNAL_ID && responsibleNode.getNextIdleTime() > timeToHappen) {
-            timeToHappen = responsibleNode.getNextIdleTime();
-            EventDriver.insertEvent(responsibleNode.getNextIdleTime(), responsibleNode, nodeAction);
-        }
-        else
+        if (responsibleNode.getId() != Network.EXTERNAL_ID && responsibleNode.getNextIdleTime() > timeToHappen) {
+            EventDriver.insertDelayedEvent(responsibleNode.getNextIdleTime(), queueOrder, responsibleNode, nodeAction);
+        } else
             nodeAction.runOn(responsibleNode);
     }
 
     @Override
     public int compareTo(Event o) {
+        if (timeToHappen == o.timeToHappen)
+            return Double.compare(queueOrder, o.queueOrder);
         return Double.compare(timeToHappen, o.timeToHappen);
     }
 }

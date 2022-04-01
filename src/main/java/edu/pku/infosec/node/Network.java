@@ -83,14 +83,15 @@ public abstract class Network {
                     }
                 }
             }
-            for(int i = 0;i < nodes.length;i++)
-                if(dist[i][target] == Integer.MAX_VALUE)
+            for (int i = 0; i < nodes.length; i++)
+                if (dist[i][target] == Integer.MAX_VALUE)
                     throw new RuntimeException("Graph is unconnected!");
         }
     }
 
     final void sendMessage(int from, int to, NodeAction receivingAction, int size) {
         if (limitBandwidth) {
+            double queueOrder = EventDriver.getCurrentTime();
             EventDriver.insertEvent(
                     EventDriver.getCurrentTime(),
                     nodes[from],
@@ -103,7 +104,7 @@ public abstract class Network {
                                 Edge e = nextEdge[currentNode.getId()][to];
                                 if (EventDriver.getCurrentTime() < e.nextIdleTime) {
                                     // wait for idle bandwidth
-                                    EventDriver.insertEvent(e.nextIdleTime, currentNode, this);
+                                    EventDriver.insertDelayedEvent(e.nextIdleTime, queueOrder, currentNode, this);
                                 } else {
                                     e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
                                     double receivingTime =

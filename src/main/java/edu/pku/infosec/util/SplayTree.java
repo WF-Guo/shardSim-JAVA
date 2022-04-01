@@ -99,11 +99,11 @@ class TreeNode {
                 lSize = currentNode.leftSize();
             }
         }
-        while(stack.size() >= 2) {
+        while (stack.size() >= 2) {
             final LayerData l2 = stack.pop();
             final LayerData l1 = stack.pop();
             l2.p.ch[l2.dir] = currentNode;
-            if(l1.dir == l2.dir)
+            if (l1.dir == l2.dir)
                 currentNode = l1.p.rotate(l1.dir ^ 1).rotate(l2.dir ^ 1);
             else {
                 l1.p.ch[l1.dir] = l2.p.rotate(l2.dir ^ 1);
