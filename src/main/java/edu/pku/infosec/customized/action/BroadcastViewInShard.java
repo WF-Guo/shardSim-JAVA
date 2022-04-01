@@ -1,4 +1,4 @@
-package edu.pku.infosec.customized.detail;
+package edu.pku.infosec.customized.action;
 
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;

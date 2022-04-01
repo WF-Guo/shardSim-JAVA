@@ -1,15 +1,14 @@
 package edu.pku.infosec.customized;
 
+import edu.pku.infosec.customized.request.Request;
+import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.util.Counter;
 import edu.pku.infosec.util.GroupedList;
 import edu.pku.infosec.util.GroupedSet;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class ModelData {
     // Shard Structure
@@ -23,20 +22,24 @@ public class ModelData {
     public static final Map<Integer, Integer> groupLeader2GroupSize = new HashMap<>();
     public static final Set<Integer> maliciousNodes = new HashSet<>();
     // Transaction Processing
+    public static final Set<TxInput> utxoSet = new HashSet<>();
     public static final Map<TxInfo, Integer> ClientAccessPoint = new HashMap<>();
-    public static final Counter<TxInfo> totalProofSize = new Counter<>();
-    public static final Map<TxInfo, Integer> rejectProofSize = new HashMap<>();
     public static final GroupedSet<TxInfo, Integer> ISSet = new GroupedSet<>();
     public static final GroupedSet<TxInfo, Integer> OSSet = new GroupedSet<>();
-    public static final GroupedSet<TxInfo, Integer> RejectingISs = new GroupedSet<>();
-    public static final GroupedSet<Integer, TxInput> utxoSetOnNode = new GroupedSet<>();
-    public static final GroupedSet<Integer, TxInput> uncommittedInputsOnNode = new GroupedSet<>();
-    private static final Map<Integer, Map<TxInfo, NodeSigningState>> txProc_base = new HashMap<>();
+    public static final GroupedList<TxInfo, CollectivelySignedMessage> proofsOfAcceptance = new GroupedList<>();
+    public static final GroupedList<TxInfo, CollectivelySignedMessage> proofsOfRejection = new GroupedList<>();
+    public static final Counter<TxInfo> commitCounter = new Counter<>();
+    public static final GroupedSet<Node, TxInput> node2SpendingSet = new GroupedSet<>();
+    public static final Map<Integer, Block> shard2CurrentBlock = new HashMap<>();
+    public static final Map<Node, Queue<Request>> leader2WaitingQueue = new HashMap<>();
+    private static final Map<Node, NodeSigningState> node2SigningState = new HashMap<>();
     // Constant
     public static int NODE_NUM;
     public static int SHARD_NUM;
-    public static double UTXOSET_OP_TIME;
-    public static double OUTPUT_STORE_TIME;
+    public static int BLOCK_SIZE;
+    public static double UTXO_SELECT_TIME;
+    public static double UTXO_REMOVE_TIME;
+    public static double UTXO_INSERT_TIME;
     public static double BYTE_HASH_TIME;
     public static double ECDSA_POINT_MUL_TIME;
     public static double ECDSA_POINT_ADD_TIME;
@@ -47,34 +50,30 @@ public class ModelData {
     public static int ECDSA_POINT_SIZE;
     public static int HASH_SIZE;
 
-
-    public static int getShardId(TxInput input) {
+    public static int hashToShard(TxInput input) {
         int inputHash = input.hashCode();
         if (inputHash < 0)
             inputHash -= Integer.MIN_VALUE;
         return inputHash % SHARD_NUM;
     }
 
-    public static NodeSigningState getState(int nodeId, TxInfo tx) {
-        txProc_base.putIfAbsent(nodeId, new HashMap<>());
-        txProc_base.get(nodeId).putIfAbsent(tx, new NodeSigningState());
-        return txProc_base.get(nodeId).get(tx);
-    }
-
-    public static void clearState(int nodeId, TxInfo tx) {
-        txProc_base.get(nodeId).remove(tx);
-    }
-
-
     // addInitUTXO will be called at system initialization
     public static void addInitUTXO(TxInput utxo) {
-        int shardLeader = shard2Leader.get(getShardId(utxo));
-        utxoSetOnNode.getGroup(shardLeader).add(utxo);
-        for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(shardLeader)) {
-            utxoSetOnNode.getGroup(groupLeader).add(utxo);
-            for (Integer member : groupLeader2Members.getGroup(groupLeader)) {
-                utxoSetOnNode.getGroup(member).add(utxo);
-            }
-        }
+        utxoSet.add(utxo);
+    }
+
+    public static void clearClientState(TxInfo tx) {
+        ClientAccessPoint.remove(tx);
+        proofsOfAcceptance.removeGroup(tx);
+        proofsOfRejection.removeGroup(tx);
+        ISSet.removeGroup(tx);
+        OSSet.removeGroup(tx);
+        ClientAccessPoint.remove(tx);
+        commitCounter.count(tx);
+    }
+
+    public static NodeSigningState getState(Node node) {
+        node2SigningState.putIfAbsent(node, new NodeSigningState());
+        return node2SigningState.get(node);
     }
 }

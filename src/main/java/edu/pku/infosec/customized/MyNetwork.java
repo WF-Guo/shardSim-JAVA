@@ -17,7 +17,10 @@ public class MyNetwork extends Network {
         NODE_NUM = size;
         SHARD_NUM = modelConfig.getInteger("shardNum");
         int maliciousNodeNum = modelConfig.getInteger("maliciousNodeNum");
-        UTXOSET_OP_TIME = modelConfig.getDouble("utxoOpTime");
+        BLOCK_SIZE = modelConfig.getInteger("blockSize");
+        UTXO_SELECT_TIME = modelConfig.getDouble("UTXOSelectTime");
+        UTXO_REMOVE_TIME = modelConfig.getDouble("UTXORemoveTime");
+        UTXO_INSERT_TIME = modelConfig.getDouble("UTXOInsertTime");
         BYTE_HASH_TIME = modelConfig.getDouble("hashTimePerByte");
         ECDSA_POINT_MUL_TIME = modelConfig.getDouble("ECDSAPointMulTime");
         ECDSA_POINT_ADD_TIME = modelConfig.getDouble("ECDSAPointAddTime");
@@ -33,7 +36,7 @@ public class MyNetwork extends Network {
         Integer[] permutation = new Integer[size];
         for (int i = 0; i < size; i++)
             permutationList.add(i);
-        Collections.shuffle(permutationList);
+        Collections.shuffle(permutationList, random);
         permutationList.toArray(permutation);
 
         // Initialize shards
@@ -70,8 +73,11 @@ public class MyNetwork extends Network {
             shardBeginIndex += shardSize;
         }
 
-        // Malicious nodes
-        Collections.shuffle(permutationList);
+        // Malicious nodes, assuming that leader is honest
+        for (int i = 0; i < SHARD_NUM; i++) {
+            permutationList.remove(shard2Leader.get(i));
+        }
+        Collections.shuffle(permutationList, random);
         maliciousNodes.addAll(permutationList.subList(0, maliciousNodeNum));
 
         // Create random connection
