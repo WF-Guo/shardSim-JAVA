@@ -38,7 +38,7 @@ public class Main {
         boolean limitBandwidth = config.getBoolean("limitBandwidth");
         int externalLatency = config.getInteger("externalLatency");
         Integer initialUTXONum = config.getInteger("initUTXO");
-        if(initialUTXONum == null)
+        if (initialUTXONum == null)
             initialUTXONum = 10000;
         JSONObject otherConfig = config.getJSONObject("model");
         Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);

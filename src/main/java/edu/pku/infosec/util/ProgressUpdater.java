@@ -7,6 +7,7 @@ import java.util.TimerTask;
 
 public class ProgressUpdater extends TimerTask {
     final int full;
+
     public ProgressUpdater(int transactionNum) {
         full = transactionNum;
     }

@@ -1,10 +1,10 @@
 package edu.pku.infosec.transaction;
 
 import com.alibaba.fastjson.JSONObject;
-import edu.pku.infosec.util.ProgressUpdater;
 import edu.pku.infosec.customized.TxGeneration;
 import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.node.Node;
+import edu.pku.infosec.util.ProgressUpdater;
 
 import java.util.Timer;
 
