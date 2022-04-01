@@ -1,7 +1,7 @@
 package edu.pku.infosec.transaction;
 
 import com.alibaba.fastjson.JSONObject;
-import edu.pku.infosec.util.ProgressBarUpdater;
+import edu.pku.infosec.util.ProgressUpdater;
 import edu.pku.infosec.customized.TxGeneration;
 import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.node.Node;
@@ -18,6 +18,6 @@ public class TxGenScheduler {
             EventDriver.insertEvent(time, client, generator);
             time += interval;
         }
-        new Timer(true).scheduleAtFixedRate(new ProgressBarUpdater(number), 0, 500);
+        new Timer(true).scheduleAtFixedRate(new ProgressUpdater(number), 0, 5000);
     }
 }
