@@ -3,6 +3,8 @@ package edu.pku.infosec.event;
 import edu.pku.infosec.node.Network;
 import edu.pku.infosec.node.Node;
 
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.PriorityQueue;
 
 public class EventDriver {
@@ -14,11 +16,11 @@ public class EventDriver {
     }
 
     public static void insertEvent(double timeToHappen, Node responsibleNode, NodeAction nodeAction) {
-        eventQueue.add(new Event(timeToHappen, timeToHappen, responsibleNode, nodeAction));
+        eventQueue.add(new Event(timeToHappen, responsibleNode, nodeAction, false));
     }
 
-    public static void insertDelayedEvent(double timeToHappen, double originalTime, Node responsibleNode, NodeAction nodeAction) {
-        eventQueue.add(new Event(timeToHappen, originalTime, responsibleNode, nodeAction));
+    protected static void insertDelayedEvent(double timeToHappen, Node responsibleNode, NodeAction nodeAction) {
+        eventQueue.add(new Event(timeToHappen, responsibleNode, nodeAction, true));
     }
 
     public static void start() {
@@ -30,18 +32,18 @@ public class EventDriver {
     }
 }
 
-
 class Event implements Comparable<Event> {
     private final double timeToHappen;
-    private final double queueOrder;
     private final Node responsibleNode;
     private final NodeAction nodeAction;
+    private static final HashMap<Node, LinkedList<NodeAction>> node2DelayedActions = new HashMap<>();
+    private final boolean delayed;
 
-    public Event(double timeToHappen, double queueOrder, Node responsibleNode, NodeAction nodeAction) {
+    public Event(double timeToHappen, Node responsibleNode, NodeAction nodeAction, boolean delayed) {
         this.timeToHappen = timeToHappen;
-        this.queueOrder = queueOrder;
         this.responsibleNode = responsibleNode;
         this.nodeAction = nodeAction;
+        this.delayed = delayed;
     }
 
     public double getTimeToHappen() {
@@ -49,17 +51,22 @@ class Event implements Comparable<Event> {
     }
 
     public void happen() {
+        node2DelayedActions.putIfAbsent(responsibleNode, new LinkedList<>());
+        final LinkedList<NodeAction> delayedActions = node2DelayedActions.get(responsibleNode);
+
         if (responsibleNode.getId() != Network.EXTERNAL_ID && responsibleNode.getNextIdleTime() > timeToHappen) {
-            EventDriver.insertDelayedEvent(responsibleNode.getNextIdleTime(), queueOrder, responsibleNode, nodeAction);
-        } else
+            delayedActions.add(nodeAction);
+        } else {
             nodeAction.runOn(responsibleNode);
+            if (!delayedActions.isEmpty())
+                EventDriver.insertDelayedEvent(responsibleNode.getNextIdleTime(), responsibleNode, delayedActions.remove());
+        }
     }
 
     @Override
     public int compareTo(Event o) {
         if (timeToHappen == o.timeToHappen)
-            return Double.compare(queueOrder, o.queueOrder);
+            return -Boolean.compare(delayed, o.delayed);
         return Double.compare(timeToHappen, o.timeToHappen);
     }
 }
-
