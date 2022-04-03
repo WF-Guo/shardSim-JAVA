@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSONObject;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
-import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
 import edu.pku.infosec.util.RandomChoose;
 

@@ -16,7 +16,7 @@ public class TxInput {
 
     @Override
     public int hashCode() {
-        return (int)(tid * 8 + n);
+        return (int) (tid * 8 + n);
     }
 
     @Override
