@@ -18,7 +18,7 @@ import java.util.List;
 public class Main {
     public static void main(String[] args) {
         if (args.length != 1) {
-            System.err.println("Usage: java -Xms32000m -Xmx48000m -jar shardSim.jar <ConfigFile>");
+            System.err.println("Usage: java [-Xms32000m -Xmx48000m] -jar shardSim.jar <ConfigFile>");
             return;
         }
         JSONObject config;
@@ -38,7 +38,7 @@ public class Main {
         boolean limitBandwidth = config.getBoolean("limitBandwidth");
         int externalLatency = config.getInteger("externalLatency");
         Integer initialUTXONum = config.getInteger("initUTXO");
-        if(initialUTXONum == null)
+        if (initialUTXONum == null)
             initialUTXONum = 10000;
         JSONObject otherConfig = config.getJSONObject("model");
         Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);
