@@ -1,6 +1,5 @@
 package edu.pku.infosec.customized;
 
-import edu.pku.infosec.customized.request.Request;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
@@ -8,7 +7,10 @@ import edu.pku.infosec.util.Counter;
 import edu.pku.infosec.util.GroupedList;
 import edu.pku.infosec.util.GroupedSet;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class ModelData {
     // Shard Structure
@@ -30,9 +32,9 @@ public class ModelData {
     public static final GroupedList<TxInfo, CollectivelySignedMessage> proofsOfRejection = new GroupedList<>();
     public static final Counter<TxInfo> commitCounter = new Counter<>();
     public static final GroupedSet<Node, TxInput> node2SpendingSet = new GroupedSet<>();
-    public static final Map<Integer, Block> shard2CurrentBlock = new HashMap<>();
-    public static final Map<Node, Queue<Request>> leader2WaitingQueue = new HashMap<>();
-    private static final Map<Node, NodeSigningState> node2SigningState = new HashMap<>();
+    public static final Map<CollectivelySignedMessage, Block> prepareCoSi2Block = new HashMap<>();
+    public static final Map<Node, Block> shardLeader2AssemblingBlock = new HashMap<>();
+    private static final Map<Node, Map<Signable, NodeSigningState>> signingStateDS = new HashMap<>();
     // Constant
     public static int NODE_NUM;
     public static int SHARD_NUM;
@@ -72,8 +74,15 @@ public class ModelData {
         commitCounter.count(tx);
     }
 
-    public static NodeSigningState getState(Node node) {
-        node2SigningState.putIfAbsent(node, new NodeSigningState());
-        return node2SigningState.get(node);
+    public static NodeSigningState getState(Node node, Signable message) {
+        signingStateDS.putIfAbsent(node, new HashMap<>());
+        final Map<Signable, NodeSigningState> signingStateMap = signingStateDS.get(node);
+        signingStateMap.putIfAbsent(message, new NodeSigningState());
+        return signingStateMap.get(message);
+    }
+
+    public static void clearState(Node node, Signable message) {
+        final Map<Signable, NodeSigningState> signingStateMap = signingStateDS.get(node);
+        signingStateMap.remove(message);
     }
 }

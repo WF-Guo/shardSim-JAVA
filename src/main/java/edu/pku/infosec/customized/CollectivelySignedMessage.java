@@ -1,12 +1,9 @@
 package edu.pku.infosec.customized;
 
 import edu.pku.infosec.customized.action.BroadcastViewInShard;
-import edu.pku.infosec.customized.action.ShardLeaderAnnounceStatement;
 import edu.pku.infosec.customized.request.Request;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
-
-import java.util.Queue;
 
 import static edu.pku.infosec.customized.ModelData.*;
 
@@ -35,7 +32,8 @@ public class CollectivelySignedMessage implements Signable {
     @Override
     public NodeAction actionAfterSigning(int absentNum, int shardId) {
         return currentNode -> {
-            final Block block = shard2CurrentBlock.get(shardId);
+            clearState(currentNode, this);
+            final Block block = prepareCoSi2Block.remove(this);
             final int requestNum = block.getRequestList().size();
             final int treeDepth = (int) (Math.ceil(Math.log(requestNum - 0.000001) / Math.log(2)));
             final int fullDepthRange = treeDepth == 0 ? 1 : ((requestNum - (1 << (treeDepth - 1))) * 2);
@@ -53,26 +51,7 @@ public class CollectivelySignedMessage implements Signable {
             }
             // Spend commit time
             final CollectivelySignedMessage blockProof = new CollectivelySignedMessage(absentNum, HASH_SIZE, shardId);
-            new BroadcastViewInShard(new CommitBlockLocally(block, blockProof), blockProof.getSize());
-
-            // assemble new block
-            final Queue<Request> requestQueue = leader2WaitingQueue.get(currentNode);
-            shard2CurrentBlock.put(shardId, new Block());
-            final Block newBlock = shard2CurrentBlock.get(shardId);
-            while (!requestQueue.isEmpty()) {
-                final Request entry = requestQueue.peek();
-                if (entry.getSize() + newBlock.getSize() > BLOCK_SIZE) {
-                    final NodeSigningState state = getState(currentNode);
-                    state.replyCounter = state.acceptCounter = 0;
-                    // sign on merkle root
-                    int hashedHashNum = newBlock.getRequestList().size() - 2; // exclude leafs and root
-                    currentNode.stayBusy(
-                            BYTE_HASH_TIME * (newBlock.getSize() + HASH_SIZE * hashedHashNum),
-                            new ShardLeaderAnnounceStatement(newBlock)
-                    );
-                    break;
-                } else newBlock.addRequest(requestQueue.remove());
-            }
+            new BroadcastViewInShard(new CommitBlockLocally(block, blockProof), blockProof.getSize()).runOn(currentNode);
         };
     }
 }

@@ -8,8 +8,7 @@ import edu.pku.infosec.node.Node;
 import java.util.ArrayList;
 import java.util.List;
 
-import static edu.pku.infosec.customized.ModelData.HASH_SIZE;
-import static edu.pku.infosec.customized.ModelData.maliciousNodes;
+import static edu.pku.infosec.customized.ModelData.*;
 
 public class Block implements Signable {
     private final List<Request> requestList = new ArrayList<>();
@@ -46,6 +45,11 @@ public class Block implements Signable {
 
     @Override
     public NodeAction actionAfterSigning(int absentNum, int shardId) {
-        return new ShardLeaderAnnounceStatement(new CollectivelySignedMessage(absentNum, HASH_SIZE, shardId));
+        return currentNode -> {
+            clearState(currentNode, this);
+            final CollectivelySignedMessage prepareCoSi = new CollectivelySignedMessage(absentNum, HASH_SIZE, shardId);
+            prepareCoSi2Block.put(prepareCoSi, this);
+            new ShardLeaderAnnounceStatement(prepareCoSi).runOn(currentNode);
+        };
     }
 }

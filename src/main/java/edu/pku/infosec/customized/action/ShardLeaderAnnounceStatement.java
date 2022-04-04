@@ -3,7 +3,6 @@ package edu.pku.infosec.customized.action;
 import edu.pku.infosec.customized.NodeSigningState;
 import edu.pku.infosec.customized.Signable;
 import edu.pku.infosec.customized.VerificationResult;
-import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 
@@ -18,7 +17,7 @@ public class ShardLeaderAnnounceStatement implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         state.replyCounter = state.acceptCounter = 1;
         state.admitted = true;
         for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(currentNode.getId())) {
@@ -36,7 +35,7 @@ class GroupLeaderGetAnnouncement implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         state.replyCounter = state.acceptCounter = 0;
         for (Integer member : groupLeader2Members.getGroup(currentNode.getId())) {
             currentNode.sendMessage(member, new MemberGetAnnouncement(statement), statement.getSize());
@@ -56,7 +55,7 @@ class MemberGetAnnouncement implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         final VerificationResult result = statement.verifyOn(currentNode);
         state.admitted = result.passed;
         currentNode.stayBusy(result.timeCost, new MemberVoteFor(statement, result.passed));
@@ -77,7 +76,7 @@ class MemberVoteFor implements NodeAction {
         currentNode.sendMessage(
                 node2GroupLeader.get(currentNode.getId()),
                 new GroupLeaderCollectVote(statement, approval),
-                approval ? ECDSA_POINT_SIZE : 1
+                (approval ? ECDSA_POINT_SIZE : 1) + HASH_SIZE/*block hash*/
         );
     }
 }
@@ -93,7 +92,7 @@ class GroupLeaderCollectVote implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         if (approval)
             state.acceptCounter += 1;
         state.replyCounter += 1;
@@ -117,10 +116,11 @@ class GroupLeaderAggregateCommits implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
-        currentNode.sendMessage(groupLeader2ShardLeader.get(currentNode.getId()),
+        final NodeSigningState state = getState(currentNode, statement);
+        currentNode.sendMessage(
+                groupLeader2ShardLeader.get(currentNode.getId()),
                 new ShardLeaderCollectVotes(statement, state.acceptCounter, state.replyCounter),
-                HASH_SIZE /*Merkle root*/ + ECDSA_POINT_SIZE /*commit*/ +
+                HASH_SIZE/*block hash*/ + HASH_SIZE /*commitments' Merkle root*/ + ECDSA_POINT_SIZE /*commit*/ +
                         (state.replyCounter - state.acceptCounter) * ECDSA_POINT_SIZE /*absent list*/
         );
     }
@@ -139,7 +139,7 @@ class ShardLeaderCollectVotes implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         final int groupNumber = shardLeader2GroupLeaders.getGroup(currentNode.getId()).size();
         state.acceptCounter += acceptCnt;
         state.replyCounter += replyCnt;
@@ -168,13 +168,14 @@ class ShardLeaderStartChallenge implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         final int absentNum = shardLeader2ShardSize.get(currentNode.getId()) - state.acceptCounter;
         state.replyCounter = 0;
         if (state.admitted)
             state.replyCounter++;
         for (Integer groupLeader : shardLeader2GroupLeaders.getGroup(currentNode.getId())) {
-            currentNode.sendMessage(groupLeader, new GroupLeaderGetChallenge(statement), HASH_SIZE);
+            currentNode.sendMessage(groupLeader, new GroupLeaderGetChallenge(statement),
+                    HASH_SIZE/*c=hash(S|V)*/ + HASH_SIZE/*block hash*/);
         }
         currentNode.stayBusy(ECDSA_POINT_ADD_TIME * absentNum, n -> {
         }); // calc pubKey sum
@@ -190,12 +191,13 @@ class GroupLeaderGetChallenge implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         state.replyCounter = 0;
         if (state.admitted)
             state.replyCounter++;
         for (Integer member : groupLeader2Members.getGroup(currentNode.getId())) {
-            currentNode.sendMessage(member, new MemberGetChallenge(statement), HASH_SIZE);
+            currentNode.sendMessage(member, new MemberGetChallenge(statement),
+                    HASH_SIZE/*c=hash(S|V)*/ + HASH_SIZE/*block hash*/);
         }
     }
 }
@@ -209,10 +211,13 @@ class MemberGetChallenge implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         if (state.admitted)
-            currentNode.sendMessage(node2GroupLeader.get(currentNode.getId()),
-                    new GroupLeaderCollectResponse(statement), ECDSA_NUMBER_SIZE);
+            currentNode.sendMessage(
+                    node2GroupLeader.get(currentNode.getId()),
+                    new GroupLeaderCollectResponse(statement),
+                    ECDSA_NUMBER_SIZE + HASH_SIZE/*block hash*/
+            );
     }
 }
 
@@ -225,11 +230,14 @@ class GroupLeaderCollectResponse implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        final NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         state.replyCounter += 1;
         if (state.replyCounter == state.acceptCounter && state.acceptCounter > 0) {
-            currentNode.sendMessage(groupLeader2ShardLeader.get(currentNode.getId()),
-                    new ShardLeaderCollectResponse(statement, state.replyCounter), ECDSA_NUMBER_SIZE);
+            currentNode.sendMessage(
+                    groupLeader2ShardLeader.get(currentNode.getId()),
+                    new ShardLeaderCollectResponse(statement, state.replyCounter),
+                    ECDSA_NUMBER_SIZE + HASH_SIZE/*block hash*/
+            );
         }
     }
 }
@@ -245,7 +253,7 @@ class ShardLeaderCollectResponse implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-        NodeSigningState state = getState(currentNode);
+        final NodeSigningState state = getState(currentNode, statement);
         final int absentNum = shardLeader2ShardSize.get(currentNode.getId()) - state.acceptCounter;
         state.replyCounter += replyCnt;
         if (state.replyCounter >= state.acceptCounter) {
