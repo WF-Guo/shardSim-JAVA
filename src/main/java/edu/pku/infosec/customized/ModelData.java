@@ -26,7 +26,7 @@ public class ModelData {
     public static long FalseConsensusCnt = 0;
     public static Map<shardPair, List<Integer>> overlapShards;
     public static Map<Integer, shardPair> originalShardIndex;
-    public final static Map<Long, List<TxInput>> collectedVerification = new HashMap<>();
+    public final static Map<Long, Set<TxInput>> collectedVerification = new HashMap<>();
     public final static Set<Long> CommittedTransactions = new HashSet<>();
     private final static Set<TxInput> UTXO = new HashSet<>();
     private final static Map<TxInput, Long> lockedUTXO = new HashMap<>();
@@ -44,8 +44,9 @@ public class ModelData {
 
     public static boolean verifyUTXO(TxInput input, long tid) {
         // return true iff the utxo exists and is not locked for another transaction
-        if (!UTXO.contains(input))
+        if (!UTXO.contains(input)) {
             return false;
+        }
         if (!lockedUTXO.containsKey(input)) {
             lockedUTXO.put(input, tid); // locked if verification passed, in case conflicting transctions come
             return true;

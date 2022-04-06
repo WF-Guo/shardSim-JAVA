@@ -39,7 +39,7 @@ public class TxProcessing implements NodeAction {
             shardsMapping.put(outputShard, new ArrayList<>()); // but no need to verify
         }
 
-        ModelData.collectedVerification.put(txInfo.id, new ArrayList<>());
+        ModelData.collectedVerification.put(txInfo.id, new HashSet<>());
 
         Set<Integer> shardsSet = shardsMapping.keySet();
         Iterator<Integer> it = shardsSet.iterator();

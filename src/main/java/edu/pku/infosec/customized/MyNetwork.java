@@ -15,7 +15,7 @@ public class MyNetwork extends Network {
     public MyNetwork(int size, boolean limitBandwidth, int externalLatency, JSONObject modelConfig) {
         super(size, limitBandwidth, externalLatency);
         ModelData.nodeNum = size;
-        Random random = new Random(1453);
+        Random random = new Random();
         // Use addEdge(u,v,latency,bandwidth) to create a directed connection between (u,v)
         shardNum = modelConfig.getInteger("shardNum");
         ModelData.verificationTime = modelConfig.getDouble("verificationTime");
@@ -36,7 +36,7 @@ public class MyNetwork extends Network {
         List<Integer> permutation = new ArrayList<>();
         for (int i = 0; i < size; ++i)
             permutation.add(i);
-        Collections.shuffle(permutation);
+        Collections.shuffle(permutation, random);
         int segment = 2 * size / (shardNum * (shardNum + 1)), pos = 0;
         overlapShards = new HashMap<>();
         originalShardIndex = new HashMap<>();
