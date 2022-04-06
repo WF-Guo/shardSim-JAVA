@@ -4,6 +4,7 @@ import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.event.NodeAction;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
 
@@ -83,37 +84,40 @@ public abstract class Network {
                     }
                 }
             }
-            for(int i = 0;i < nodes.length;i++)
-                if(dist[i][target] == Integer.MAX_VALUE)
+            for (int i = 0; i < nodes.length; i++)
+                if (dist[i][target] == Integer.MAX_VALUE)
                     throw new RuntimeException("Graph is unconnected!");
         }
     }
 
     final void sendMessage(int from, int to, NodeAction receivingAction, int size) {
         if (limitBandwidth) {
-            EventDriver.insertEvent(
-                    EventDriver.getCurrentTime(),
-                    nodes[from],
-                    new NodeAction() {
-                        @Override
-                        public void runOn(Node currentNode) {
-                            if (currentNode.getId() == to)
-                                receivingAction.runOn(currentNode);
-                            else {
-                                Edge e = nextEdge[currentNode.getId()][to];
-                                if (EventDriver.getCurrentTime() < e.nextIdleTime) {
-                                    // wait for idle bandwidth
-                                    EventDriver.insertEvent(e.nextIdleTime, currentNode, this);
-                                } else {
-                                    e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
-                                    double receivingTime =
-                                            EventDriver.getCurrentTime() + e.latency + (double) size / e.bandwidth;
-                                    EventDriver.insertEvent(receivingTime, nodes[e.v], this); // Relay!
-                                }
-                            }
+            new NodeAction() {
+                @Override
+                public void runOn(Node currentNode) {
+                    if (currentNode.getId() == to)
+                        receivingAction.runOn(currentNode);
+                    else {
+                        Edge e = nextEdge[currentNode.getId()][to];
+                        if ((EventDriver.getCurrentTime() < e.nextIdleTime || !e.packetQueue.isEmpty()) &&
+                                this != e.packetQueue.peek()) {
+                            // wait for idle bandwidth
+                            if(e.packetQueue.isEmpty())
+                                EventDriver.insertEvent(e.nextIdleTime, currentNode, this);
+                            e.packetQueue.add(this);
+                        } else {
+                            if(this == e.packetQueue.peek())
+                                e.packetQueue.remove();
+                            e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
+                            double receivingTime =
+                                    EventDriver.getCurrentTime() + e.latency + (double) size / e.bandwidth;
+                            EventDriver.insertEvent(receivingTime, nodes[e.v], this); // Relay!
+                            if (!e.packetQueue.isEmpty())
+                                EventDriver.insertEvent(e.nextIdleTime, currentNode, e.packetQueue.peek());
                         }
                     }
-            );
+                }
+            }.runOn(nodes[from]);
         } else {
             double receivingTime = EventDriver.getCurrentTime() + dist[from][to];
             EventDriver.insertEvent(receivingTime, nodes[to], receivingAction);
@@ -140,11 +144,12 @@ public abstract class Network {
 }
 
 class Edge {
-    public final int u;
-    public final int v;
-    public final int latency;
-    public final int bandwidth;
-    public double nextIdleTime;
+    protected final int u;
+    protected final int v;
+    protected final int latency;
+    protected final int bandwidth;
+    protected final LinkedList<NodeAction> packetQueue;
+    protected double nextIdleTime;
 
     public Edge(int u, int v, int latency, int bandwidth) {
         this.u = u;
@@ -152,5 +157,6 @@ class Edge {
         this.latency = latency;
         this.bandwidth = bandwidth;
         this.nextIdleTime = 0;
+        packetQueue = new LinkedList<>();
     }
 }

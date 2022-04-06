@@ -18,35 +18,35 @@ public class TxStat {
 
     public static void submit(TxInfo tx) {
         submitTime.put(tx.id, EventDriver.getCurrentTime());
-        for(TxInput input: tx.inputs)
-        relatedTxs.put(input, tx);
+        for (TxInput input : tx.inputs)
+            relatedTxs.put(input, tx);
     }
 
     public static void confirm(TxInfo tx) {
-        if(commitTime.containsKey(tx.id))
+        if (commitTime.containsKey(tx.id))
             return; // Repeated
-        if(tx.inputs.size() > 0) // not coinbase
+        if (tx.inputs.size() > 0) // not coinbase
             commitTime.put(tx.id, EventDriver.getCurrentTime());
-        for (TxInput output: tx.outputs) {
+        for (TxInput output : tx.outputs) {
             utxoSet.add(output);
         }
-        for(TxInput spent: tx.inputs) {
-            if(relatedTxs.getGroup(spent).isEmpty())
+        for (TxInput spent : tx.inputs) {
+            if (relatedTxs.getGroup(spent).isEmpty())
                 throw new RuntimeException("Conflicting transactions are both committed.");
-            for(TxInfo conflict: relatedTxs.getGroup(spent)) {
-                if(conflict.equals(tx))
+            for (TxInfo conflict : relatedTxs.getGroup(spent)) {
+                if (conflict.equals(tx))
                     continue;
-                for(TxInput released: conflict.inputs) {
-                    if(released.equals(spent))
+                for (TxInput released : conflict.inputs) {
+                    if (released.equals(spent))
                         continue;
                     relatedTxs.getGroup(released).remove(conflict);
-                    if(relatedTxs.getGroup(released).isEmpty()) {
+                    if (relatedTxs.getGroup(released).isEmpty()) {
                         utxoSet.add(released);
                     }
                 }
             }
         }
-        for(TxInput spent: tx.inputs)
+        for (TxInput spent : tx.inputs)
             relatedTxs.removeGroup(spent);
     }
 
