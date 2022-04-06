@@ -38,7 +38,8 @@ public class ModelData {
     // Constant
     public static int NODE_NUM;
     public static int SHARD_NUM;
-    public static int BLOCK_SIZE;
+    public static int BLOCK_SIZE_LIMIT;
+    public static int BLOCK_TX_NUM_LIMIT;
     public static double UTXO_SELECT_TIME;
     public static double UTXO_REMOVE_TIME;
     public static double UTXO_INSERT_TIME;

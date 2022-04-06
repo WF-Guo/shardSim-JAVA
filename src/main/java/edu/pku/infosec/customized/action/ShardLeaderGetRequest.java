@@ -41,19 +41,27 @@ class ShardLeaderAcceptRequest implements NodeAction {
     public void runOn(Node currentNode) {
         shardLeader2AssemblingBlock.putIfAbsent(currentNode, new Block());
         Block block = shardLeader2AssemblingBlock.get(currentNode);
-        if (block.getSize() + request.getSize() > BLOCK_SIZE) {
-            final Block assembledBlock = block;
-            block = new Block();
-            shardLeader2AssemblingBlock.put(currentNode, block);
-            final NodeSigningState state = getState(currentNode, assembledBlock);
-            state.replyCounter = state.acceptCounter = 0;
-            // sign on merkle root
-            int hashedHashNum = assembledBlock.getRequestList().size() - 2; // exclude leafs and root
-            currentNode.stayBusy(
-                    BYTE_HASH_TIME * (assembledBlock.getSize() + HASH_SIZE * hashedHashNum),
-                    new ShardLeaderAnnounceStatement(assembledBlock)
-            );
+        if (block.getSize() + request.getSize() > BLOCK_SIZE_LIMIT) {
+            block = startNewBlock(block, currentNode);
         }
         block.addRequest(request);
+        if (block.getRequestList().size() == BLOCK_TX_NUM_LIMIT) {
+            startNewBlock(block, currentNode);
+        }
+    }
+
+    private Block startNewBlock(Block block, Node currentNode) {
+        final Block assembledBlock = block;
+        block = new Block();
+        shardLeader2AssemblingBlock.put(currentNode, block);
+        final NodeSigningState state = getState(currentNode, assembledBlock);
+        state.replyCounter = state.acceptCounter = 0;
+        // sign on merkle root
+        int hashedHashNum = assembledBlock.getRequestList().size() - 2; // exclude leafs and root
+        currentNode.stayBusy(
+                BYTE_HASH_TIME * (assembledBlock.getSize() + HASH_SIZE * hashedHashNum),
+                new ShardLeaderAnnounceStatement(assembledBlock)
+        );
+        return block;
     }
 }

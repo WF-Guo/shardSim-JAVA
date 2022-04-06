@@ -17,7 +17,8 @@ public class MyNetwork extends Network {
         NODE_NUM = size;
         SHARD_NUM = modelConfig.getInteger("shardNum");
         int maliciousNodeNum = modelConfig.getInteger("maliciousNodeNum");
-        BLOCK_SIZE = modelConfig.getInteger("blockSize");
+        BLOCK_SIZE_LIMIT = modelConfig.getInteger("blockSizeLimit");
+        BLOCK_TX_NUM_LIMIT = modelConfig.getInteger("blockTxNumLimit");
         UTXO_SELECT_TIME = modelConfig.getDouble("UTXOSelectTime");
         UTXO_REMOVE_TIME = modelConfig.getDouble("UTXORemoveTime");
         UTXO_INSERT_TIME = modelConfig.getDouble("UTXOInsertTime");

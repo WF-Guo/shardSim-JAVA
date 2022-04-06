@@ -102,11 +102,11 @@ public abstract class Network {
                         if ((EventDriver.getCurrentTime() < e.nextIdleTime || !e.packetQueue.isEmpty()) &&
                                 this != e.packetQueue.peek()) {
                             // wait for idle bandwidth
-                            if(e.packetQueue.isEmpty())
+                            if (e.packetQueue.isEmpty())
                                 EventDriver.insertEvent(e.nextIdleTime, currentNode, this);
                             e.packetQueue.add(this);
                         } else {
-                            if(this == e.packetQueue.peek())
+                            if (this == e.packetQueue.peek())
                                 e.packetQueue.remove();
                             e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
                             double receivingTime =
