@@ -10,6 +10,7 @@ import java.util.PriorityQueue;
 public class EventDriver {
     private static final PriorityQueue<Event> eventQueue = new PriorityQueue<>();
     private static double currentTime;
+    private static final HashMap<Node, LinkedList<NodeAction>> node2DelayedActions = new HashMap<>();
 
     public static double getCurrentTime() {
         return currentTime;
@@ -19,48 +20,45 @@ public class EventDriver {
         eventQueue.add(new Event(timeToHappen, responsibleNode, nodeAction, false));
     }
 
+    public static void insertLocalAction(Node currentNode, NodeAction nodeAction) {
+        node2DelayedActions.putIfAbsent(currentNode, new LinkedList<>());
+        node2DelayedActions.get(currentNode).add(nodeAction);
+    }
+
     protected static void insertDelayedEvent(double timeToHappen, Node responsibleNode, NodeAction nodeAction) {
         eventQueue.add(new Event(timeToHappen, responsibleNode, nodeAction, true));
     }
 
     public static void start() {
         while (!eventQueue.isEmpty()) {
-            Event event = eventQueue.remove();
-            currentTime = event.getTimeToHappen();
-            event.happen();
+            final Event event = eventQueue.remove();
+            final Node node = event.responsibleNode;
+            final NodeAction action = event.nodeAction;
+            node2DelayedActions.putIfAbsent(node, new LinkedList<>());
+            final LinkedList<NodeAction> delayedActions = node2DelayedActions.get(node);
+            currentTime = event.timeToHappen;
+            if (node.getId() != Network.EXTERNAL_ID && node.getNextIdleTime() > currentTime) {
+                delayedActions.add(action);
+            } else {
+                action.runOn(node);
+                if (!delayedActions.isEmpty())
+                    EventDriver.insertDelayedEvent(node.getNextIdleTime(), node, delayedActions.remove());
+            }
         }
     }
 }
 
 class Event implements Comparable<Event> {
-    private final double timeToHappen;
-    private final Node responsibleNode;
-    private final NodeAction nodeAction;
-    private static final HashMap<Node, LinkedList<NodeAction>> node2DelayedActions = new HashMap<>();
-    private final boolean delayed;
+    final double timeToHappen;
+    final Node responsibleNode;
+    final NodeAction nodeAction;
+    final boolean delayed;
 
     public Event(double timeToHappen, Node responsibleNode, NodeAction nodeAction, boolean delayed) {
         this.timeToHappen = timeToHappen;
         this.responsibleNode = responsibleNode;
         this.nodeAction = nodeAction;
         this.delayed = delayed;
-    }
-
-    public double getTimeToHappen() {
-        return timeToHappen;
-    }
-
-    public void happen() {
-        node2DelayedActions.putIfAbsent(responsibleNode, new LinkedList<>());
-        final LinkedList<NodeAction> delayedActions = node2DelayedActions.get(responsibleNode);
-
-        if (responsibleNode.getId() != Network.EXTERNAL_ID && responsibleNode.getNextIdleTime() > timeToHappen) {
-            delayedActions.add(nodeAction);
-        } else {
-            nodeAction.runOn(responsibleNode);
-            if (!delayedActions.isEmpty())
-                EventDriver.insertDelayedEvent(responsibleNode.getNextIdleTime(), responsibleNode, delayedActions.remove());
-        }
     }
 
     @Override
