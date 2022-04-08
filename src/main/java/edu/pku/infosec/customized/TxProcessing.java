@@ -1,10 +1,13 @@
 package edu.pku.infosec.customized;
 
+import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.event.NodeAction;
 import edu.pku.infosec.node.Node;
 import edu.pku.infosec.transaction.TxInfo;
 import edu.pku.infosec.transaction.TxInput;
 import edu.pku.infosec.transaction.TxStat;
+import edu.pku.infosec.util.GroupedSet;
+import edu.pku.infosec.util.RandomQueue;
 
 import java.util.*;
 import java.util.List;
@@ -65,12 +68,6 @@ public class TxProcessing implements NodeAction {
         /*
         if (currentNode.getId() == 233) {
             System.out.println("in TxProcessing Time Used: " + (time.getTime() - ModelData.SYSTIME));
-            System.out.println("size:");
-            System.out.println("obsentCnt" + currentNode.obsentCnt.size());
-            System.out.println("rollBackSignatureCnt" + currentNode.rollBackSignatureCnt.size());
-            System.out.println("rollBackCnt" + currentNode.rollBackCnt.size());
-            System.out.println("sonWaitCnt" + currentNode.sonWaitCnt.size());
-            System.out.println("receiveCommitSet" + currentNode.receiveCommitSet.size());
         }
          */
     }
@@ -202,6 +199,7 @@ class PreprepareReturn implements NodeAction {
             } else {
                 // send to all related shards a result 0
                 Set<Integer> involvedShards = new HashSet<>();
+                Set<Integer> involvedNodes = new HashSet<>();
                 for (TxInput input : result.vi.tx.inputs) {
                     int responsibleShard = (int) input.tid % ModelData.shardNum;
                     involvedShards.add(responsibleShard);
@@ -209,7 +207,12 @@ class PreprepareReturn implements NodeAction {
                 int outputShard = (int) result.vi.tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToOriginalShard(shard, new CheckCommit(new VerificationResult(0, result.vi)),
+                    for (int i = 0; i < ModelData.shardNum; ++i) {
+                        involvedNodes.addAll(ModelData.overlapShards.get(new shardPair(shard, i)));
+                    }
+                }
+                for (int node : involvedNodes) {
+                    currentNode.sendMessage(node, new CheckCommit(new VerificationResult(0, result.vi)),
                             ModelData.hashSize + 1 + (1 + newCnt) * ModelData.ECDSAPointSize);
                 }
             }
@@ -227,6 +230,20 @@ class StartPrepare implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+
+        /* memory check
+        if (result.vi.tx.id % 1000 == 0) {
+            System.out.println("collectedVerification " + ModelData.collectedVerification.size());
+            System.out.println("CommittedTransactions " + ModelData.CommittedTransactions.size());
+            System.out.println("ModelUTXO " + ModelData.UTXO.size());
+            System.out.println("lockedUTXO " + ModelData.lockedUTXO.size());
+            System.out.println("receiveCommitSet " + currentNode.receiveCommitSet.size() * 1024);
+            System.out.println("sonWaitCnt " + currentNode.sonWaitCnt.size() * 1024);
+            System.out.println("rollBackCnt " + currentNode.rollBackCnt.size() * 1024);
+            System.out.println("rollBackSignatureCnt " + currentNode.rollBackSignatureCnt.size() * 1024);
+            System.out.println("obsentCnt " + currentNode.obsentCnt.size() * 1024);
+        }
+         */
 
         int sons = currentNode.sendToTreeSons(new Prepare(result), ModelData.hashSize);
         currentNode.sonWaitCnt.put(result.vi.tx.id, sons);
@@ -281,6 +298,7 @@ class PrepareReturn implements NodeAction {
 
                 // send to all related shards
                 Set<Integer> involvedShards = new HashSet<>();
+                Set<Integer> involvedNodes = new HashSet<>();
                 for (TxInput input : result.vi.tx.inputs) {
                     int responsibleShard = (int) input.tid % ModelData.shardNum;
                     involvedShards.add(responsibleShard);
@@ -288,7 +306,12 @@ class PrepareReturn implements NodeAction {
                 int outputShard = (int) result.vi.tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToOriginalShard(shard, new CheckCommit(new VerificationResult(1, result.vi)),
+                    for (int i = 0; i < ModelData.shardNum; ++i) {
+                        involvedNodes.addAll(ModelData.overlapShards.get(new shardPair(shard, i)));
+                    }
+                }
+                for (int node : involvedNodes) {
+                    currentNode.sendMessage(node, new CheckCommit(new VerificationResult(1, result.vi)),
                             1 + result.vi.tx.inputs.size() * ModelData.sizePerInput +
                                     result.vi.tx.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead +
                                     ModelData.ECDSANumberSize + result.cnt * ModelData.ECDSAPointSize);
@@ -309,12 +332,6 @@ class CheckCommit implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-
-        if (currentNode.receiveCommitSet.contains(result.vi.tx.id)) { // replicate message (at most once)
-            currentNode.receiveCommitSet.remove(result.vi.tx.id);
-            return;
-        }
-        currentNode.receiveCommitSet.add(result.vi.tx.id);
 
         // TODO: how can we count a transaction as commited by the system?
         if (result.cnt == 1) {
@@ -577,6 +594,7 @@ class CollectRecheck implements NodeAction {
 
                 // send to all related shards
                 Set<Integer> involvedShards = new HashSet<>();
+                Set<Integer> involvedNodes = new HashSet<>();
                 for (TxInput input : result.ri.tx.inputs) {
                     int rollbackShard = (int) input.tid % ModelData.shardNum;
                     involvedShards.add(rollbackShard);
@@ -584,7 +602,12 @@ class CollectRecheck implements NodeAction {
                 int outputShard = (int) result.ri.tx.id % ModelData.shardNum;
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
-                    currentNode.sendToOriginalShard(shard, new RollBack(result.ri.tx), ModelData.hashSize +
+                    for (int i = 0; i < ModelData.shardNum; ++i) {
+                        involvedNodes.addAll(ModelData.overlapShards.get(new shardPair(shard, i)));
+                    }
+                }
+                for (int node : involvedNodes) {
+                    currentNode.sendMessage(node, new RollBack(result.ri.tx), ModelData.hashSize +
                             newRollBackCnt * (ModelData.ECDSAPointSize * 2 + ModelData.ECDSANumberSize));
                 }
                 return;

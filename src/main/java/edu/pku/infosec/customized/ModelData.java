@@ -28,8 +28,8 @@ public class ModelData {
     public static Map<Integer, shardPair> originalShardIndex;
     public final static Map<Long, Set<TxInput>> collectedVerification = new HashMap<>();
     public final static Set<Long> CommittedTransactions = new HashSet<>();
-    private final static Set<TxInput> UTXO = new HashSet<>();
-    private final static Map<TxInput, Long> lockedUTXO = new HashMap<>();
+    public final static Set<TxInput> UTXO = new HashSet<>();
+    public final static Map<TxInput, Long> lockedUTXO = new HashMap<>();
 
     //TODO: every honest validator shares the same UTXO, should we set an independent UTXO set for different validators?
 

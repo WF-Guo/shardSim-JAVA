@@ -21,7 +21,6 @@ public class Node {
     public final Map<Long, Integer> rollBackCnt;
     public final Map<Long, Integer> sonWaitCnt;
     public final Map<Long, Integer> obsentCnt;
-    public final Set<Long> receiveCommitSet;
 
     Node(int id, Network network) {
         this.id = id;
@@ -30,7 +29,6 @@ public class Node {
         rollBackSignatureCnt = new HashMap<>();
         obsentCnt= new HashMap<>();
         sonWaitCnt = new HashMap<>();
-        receiveCommitSet = new HashSet<>();
     }
 
     public int getId() {
@@ -66,13 +64,6 @@ public class Node {
         if(this.id == -1)
             throw new RuntimeException("sendToHalfOriginalShard() is for nodes");
         ((MyNetwork) network).sendToHalfOriginalShard(id, originalShard, hash, receivingAction, size);
-    }
-
-    public void sendToOriginalShard
-            (int originalShard, NodeAction receivingAction, int size) {
-        if(this.id == -1)
-            throw new RuntimeException("sendToOriginalShard() is for nodes");
-        ((MyNetwork) network).sendToOriginalShard(id, originalShard, receivingAction, size);
     }
 
     public int sendToTreeSons(NodeAction receivingAction, int size) {

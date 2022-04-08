@@ -130,17 +130,6 @@ public class MyNetwork extends Network {
         else
             return 0;
     }
-
-    final public void sendToOriginalShard
-            (int from, int originalShard, NodeAction receivingAction, int size)
-    {
-        for (int i = 0; i < shardNum; ++i) {
-            List<Integer> nodes = overlapShards.get(new shardPair(originalShard, i));
-            for (int node : nodes) {
-                sendMessage(from, node, receivingAction, size);
-            }
-        }
-    }
 }
 
 class shardPair {
