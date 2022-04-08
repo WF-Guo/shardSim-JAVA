@@ -92,32 +92,35 @@ public abstract class Network {
 
     final void sendMessage(int from, int to, NodeAction receivingAction, int size) {
         if (limitBandwidth) {
-            new NodeAction() {
-                @Override
-                public void runOn(Node currentNode) {
-                    if (currentNode.getId() == to)
-                        receivingAction.runOn(currentNode);
-                    else {
-                        Edge e = nextEdge[currentNode.getId()][to];
-                        if ((EventDriver.getCurrentTime() < e.nextIdleTime || !e.packetQueue.isEmpty()) &&
-                                this != e.packetQueue.peek()) {
-                            // wait for idle bandwidth
-                            if (e.packetQueue.isEmpty())
-                                EventDriver.insertEvent(e.nextIdleTime, currentNode, this);
-                            e.packetQueue.add(this);
-                        } else {
-                            if (this == e.packetQueue.peek())
-                                e.packetQueue.remove();
-                            e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
-                            double receivingTime =
-                                    EventDriver.getCurrentTime() + e.latency + (double) size / e.bandwidth;
-                            EventDriver.insertEvent(receivingTime, nodes[e.v], this); // Relay!
-                            if (!e.packetQueue.isEmpty())
-                                EventDriver.insertEvent(e.nextIdleTime, currentNode, e.packetQueue.peek());
+            EventDriver.insertLocalAction(
+                    nodes[from],
+                    new NodeAction() {
+                        @Override
+                        public void runOn(Node currentNode) {
+                            if (currentNode.getId() == to)
+                                receivingAction.runOn(currentNode);
+                            else {
+                                Edge e = nextEdge[currentNode.getId()][to];
+                                if ((EventDriver.getCurrentTime() < e.nextIdleTime || !e.packetQueue.isEmpty()) &&
+                                        this != e.packetQueue.peek()) {
+                                    // wait for idle bandwidth
+                                    if (e.packetQueue.isEmpty())
+                                        EventDriver.insertEvent(e.nextIdleTime, currentNode, this);
+                                    e.packetQueue.add(this);
+                                } else {
+                                    if (this == e.packetQueue.peek())
+                                        e.packetQueue.remove();
+                                    e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
+                                    double receivingTime =
+                                            EventDriver.getCurrentTime() + e.latency + (double) size / e.bandwidth;
+                                    EventDriver.insertEvent(receivingTime, nodes[e.v], this); // Relay!
+                                    if (!e.packetQueue.isEmpty())
+                                        EventDriver.insertEvent(e.nextIdleTime, currentNode, e.packetQueue.peek());
+                                }
+                            }
                         }
                     }
-                }
-            }.runOn(nodes[from]);
+            );
         } else {
             double receivingTime = EventDriver.getCurrentTime() + dist[from][to];
             EventDriver.insertEvent(receivingTime, nodes[to], receivingAction);
