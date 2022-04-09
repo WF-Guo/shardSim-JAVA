@@ -22,7 +22,9 @@ public class EventDriver {
 
     public static void insertLocalAction(Node currentNode, NodeAction nodeAction) {
         node2DelayedActions.putIfAbsent(currentNode, new LinkedList<>());
-        node2DelayedActions.get(currentNode).add(nodeAction);
+        if (currentTime < currentNode.getNextIdleTime())
+            node2DelayedActions.get(currentNode).add(nodeAction);
+        else nodeAction.runOn(currentNode);
     }
 
     protected static void insertDelayedEvent(double timeToHappen, Node responsibleNode, NodeAction nodeAction) {
@@ -37,7 +39,9 @@ public class EventDriver {
             node2DelayedActions.putIfAbsent(node, new LinkedList<>());
             final LinkedList<NodeAction> delayedActions = node2DelayedActions.get(node);
             currentTime = event.timeToHappen;
-            if (node.getId() != Network.EXTERNAL_ID && node.getNextIdleTime() > currentTime) {
+            if (action.getClass() == Network.TransmitMessage.class) {
+                action.runOn(node);
+            } else if (node.getId() != Network.EXTERNAL_ID && node.getNextIdleTime() > currentTime) {
                 delayedActions.add(action);
             } else {
                 action.runOn(node);
