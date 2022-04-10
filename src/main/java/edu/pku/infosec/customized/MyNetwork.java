@@ -50,8 +50,8 @@ public class MyNetwork extends Network {
                     }
                     for (int k = pos; k < size; ++k) {
                         for (int l = k + 1; l < size; ++l) {
-                            addEdge(permutation.get(k), permutation.get(l), 0, 2097200000);
-                            addEdge(permutation.get(l), permutation.get(k), 0, 2097200000);
+                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
                         }
                     }
                 }
@@ -64,12 +64,12 @@ public class MyNetwork extends Network {
                     for (int k = pos; k < pos + segment; ++k) {
                         for (int l = k + 1; l < size; ++l) {
                             if (l < pos + segment) {
-                                addEdge(permutation.get(k), permutation.get(l), 0, 2097200000);
-                                addEdge(permutation.get(l), permutation.get(k), 0, 2097200000);
+                                addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                                addEdge(permutation.get(l), permutation.get(k), 100, 20972);
                             } else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
                             {
-                                addEdge(permutation.get(k), permutation.get(l), 0, 2097200000);
-                                addEdge(permutation.get(l), permutation.get(k), 0, 2097200000);
+                                addEdge(permutation.get(k), permutation.get(l), 100, 20972);
+                                addEdge(permutation.get(l), permutation.get(k), 100, 20972);
                             }
                         }
                     }
