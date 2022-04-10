@@ -130,9 +130,12 @@ public abstract class Network {
 
         @Override
         public void runOn(Node currentNode) {
-            if (currentNode.getId() == to)
-                EventDriver.insertLocalAction(currentNode, receivingAction);
-            else {
+            if (currentNode.getId() == to) {
+                /* Messages from the same channel never reach at the same time, and it does no harm to
+                deal in random order with messages from different channels but reach at the same time.
+                Note that when from=to, messages sent at the same time get randomly ordered.*/
+                EventDriver.insertEvent(EventDriver.getCurrentTime(), currentNode, receivingAction);
+            } else {
                 Edge e = nextEdge[currentNode.getId()][to];
                 if ((EventDriver.getCurrentTime() < e.nextIdleTime || !e.packetQueue.isEmpty()) &&
                         this != e.packetQueue.peek()) {
