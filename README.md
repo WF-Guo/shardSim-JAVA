@@ -57,7 +57,7 @@
 4. 可以通过`EventDriver.insertEvent(time,currentNode,action)`来预定当前节点于时刻`time`执行动作，其中`time`参数可以用`EventDriver.getCurrentTime()`获取当前时间来计算。注意：使用`insertEvent`插入的相同时刻的事件，将以未知顺序而非插入顺序执行
 5. 模拟执行耗时的任务时，调用`currentNode.stayBusy(time,nextAction)`来将当前节点锁定一段时间，并指定此任务结束后的行为。可以将多个连续的任务打包为一次调用，直到提交交易或进行通信。同一个`NodeAction`中禁止多次调用`stayBusy`，推荐在调用`stayBusy`后立即让当前的`NodeAction`终止
 6. 若一个`NodeAction`不会调用`stayBusy`，那么它有很大概率会与其他动作在同一模拟时间执行。尽管这些动作会按未推迟时的时间顺序执行，但若它们执行时都使用`insertEvent(EventDriver.getCurrentTime(),currentNode,newAction)`插入了新事件，这些新事件就会被标记在相同时间，顺序无法保证。在这种情况下，可以调用`EventDriver.insertLocalAction(currentNode,action)`来强制动作按照插入顺序排队。该用法也适用于需要连续预定多个本地动作的情况，尽管将可控的连续动作合并为一个是更为推荐的做法
-7. 模拟节点间通信时，使用`currentNode.sendMessage(receiver,receivingAction,size)`，来指定接收信息的节点，接收后的行为，以及传输数据的大小（这会影响网络拥堵程度）。目标节点接收到信息的时间由网络延迟决定，不可以手动指定。按目前实现，节点向自己发送消息将会起到与`insertLocalAction`类似的效果，但不保证后续保留此特性
+7. 模拟节点间通信时，使用`currentNode.sendMessage(receiver,receivingAction,size)`，来指定接收信息的节点，接收后的行为，以及传输数据的大小（这会影响网络拥堵程度）。目标节点接收到信息的时间由网络延迟决定，不可以手动指定。按目前实现，节点同时向自己发送多条消息将会乱序到达，不推荐向自己发送。
 8. 外部网络实体（如用户运行的轻节点）也可能需要参与进交易处理中。与外部实体通信时不可以使用`sendMessage`，系统内节点通过`currentNode.sendOut(receivingAction)`可以将消息发给外部实体，外部实体上运行的`NodeAction`中可以通过`currentNode.sendIn(receiver,receivingAction)`将消息发给指定内部节点
 9. 外部实体也可以使用`currentNode.stayBusy(time,nextAction)`，但这将起到将`nextAction`延迟触发的效果，而不会阻塞其他需要外部实体处理的事件，因为在现实网络中，通常不同交易由不同的用户发出，不同用户对自己交易的处理完全可以并行。
 10. 如果需要创建`coinbase`交易，创建一个无输入的交易并调用`TxStat.confirm`，即可将其输出加入交易生成器所用的UTXO集合。这种交易不会计入延迟和吞吐量的计算。
