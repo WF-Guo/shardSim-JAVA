@@ -81,16 +81,6 @@ public class TxStat {
         return n / time;
     }
 
-    public static void CommitTimeStat() {
-        double max = 0, min = Long.MAX_VALUE;
-        for (Long tid : submitTime.keySet()) {
-            max = Math.max(max, commitTime.get(tid) - submitTime.get(tid));
-            min = Math.min(min, commitTime.get(tid) - submitTime.get(tid));
-        }
-        System.out.println("max commit time: " + max);
-        System.out.println("min commit time: " + min);
-    }
-
     public static int processedNum() {
         return commitTime.size();
     }
