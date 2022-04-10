@@ -59,20 +59,23 @@ public class Main {
         System.out.println("False Overlap Consensus Num: " + ModelData.FalseConsensusCnt);
         System.out.println("Alert Rate: " + ModelData.FalseConsensusCnt * 1.0 / ModelData.ConsensusCnt);
         final List<Double> loads = network.listNodeLoads();
-        double max = 0, min = Long.MAX_VALUE, total = 0;
+        double max = 0, min = Long.MAX_VALUE, total = 0, maxnode = 0;
         for (double load : loads) {
             total += load;
+            if (load > max)
+                maxnode = loads.indexOf(load);
             max = Math.max(max, load);
             min = Math.min(min, load);
         }
         double average = total / nodeNum, variance = 0;
         System.out.println("Average Load: " + average);
         System.out.println("Time past: " + EventDriver.getCurrentTime());
-        System.out.println("Max Load: " + max);
+        System.out.println("Max Load: " + max + " in " + maxnode);
         System.out.println("min Load: " + min);
         for (double load : loads) {
             variance += Math.pow(load - average, 2.0);
         }
         System.out.println("Load Variance: " + variance / nodeNum);
+        TxStat.CommitTimeStat();
     }
 }

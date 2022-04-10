@@ -48,6 +48,14 @@ public class TxStat {
         }
         for (TxInput spent : tx.inputs)
             relatedTxs.removeGroup(spent);
+
+        /* debug
+        if (commitTime.size() > 8000 && commitTime.size() % 10 == 0) {
+            System.out.println(commitTime.size() + " transactions committed");
+            System.out.println("Time: " + EventDriver.getCurrentTime());
+            System.out.println("EventQueueSize: " + EventDriver.getEventQueueSize());
+        }
+        */
     }
 
     public static TxInput getRandomUTXO() {
@@ -71,6 +79,16 @@ public class TxStat {
         long n = commitTime.size();
         double time = EventDriver.getCurrentTime();
         return n / time;
+    }
+
+    public static void CommitTimeStat() {
+        double max = 0, min = Long.MAX_VALUE;
+        for (Long tid : submitTime.keySet()) {
+            max = Math.max(max, commitTime.get(tid) - submitTime.get(tid));
+            min = Math.min(min, commitTime.get(tid) - submitTime.get(tid));
+        }
+        System.out.println("max commit time: " + max);
+        System.out.println("min commit time: " + min);
     }
 
     public static int processedNum() {

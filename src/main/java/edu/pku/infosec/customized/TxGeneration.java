@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class TxGeneration implements NodeAction {
-    private final Random random = new Random();
+    private final Random random = new Random(1453);
     private final ArrayList<DistributionEntry> distributionList = new ArrayList<>();
     private final double freqSum;
     private final double DSAttackRate;

@@ -15,6 +15,10 @@ public class EventDriver {
         return currentTime;
     }
 
+    public static int getEventQueueSize() {
+        return eventQueue.size();
+    }
+
     public static void insertEvent(double timeToHappen, Node responsibleNode, NodeAction nodeAction) {
         eventQueue.add(new Event(timeToHappen, responsibleNode, nodeAction, false));
     }
@@ -25,8 +29,12 @@ public class EventDriver {
 
     public static void start() {
         while (!eventQueue.isEmpty()) {
+            double lastTime = currentTime;
             Event event = eventQueue.remove();
             currentTime = event.getTimeToHappen();
+            if (currentTime - lastTime > 10) {
+                System.out.println("here");
+            }
             event.happen();
         }
     }

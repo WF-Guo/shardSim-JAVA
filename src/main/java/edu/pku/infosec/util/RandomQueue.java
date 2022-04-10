@@ -4,7 +4,7 @@ import java.util.Random;
 
 public class RandomQueue<T> {
     private final SplayTree splayTree = new SplayTree();
-    private static final Random random = new Random();
+    private static final Random random = new Random(1453);
 
     public void add(T data) {
         splayTree.pushBack(data);

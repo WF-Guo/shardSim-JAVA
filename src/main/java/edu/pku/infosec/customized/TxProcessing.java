@@ -357,19 +357,22 @@ class CheckCommit implements NodeAction {
             }
             if (secondShard == -1)
                 secondShard = firstShard;
-            if (!Objects.equals(nodeOriginalShards, new shardPair(firstShard, secondShard)))
+            if (!Objects.equals(nodeOriginalShards, new shardPair(firstShard, secondShard))) {
                 currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime,
                         new CheckCommitPass(result));
-            else if (alert)
+            }
+            else if (alert) {
                 currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime +
                         (ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime) *
                                 verifyCnt + ModelData.hashTimePerByte * (result.vi.tx.inputs.size() *
                         ModelData.sizePerInput + result.vi.tx.outputs.size() * ModelData.sizePerOutput +
                         ModelData.txOverhead + 1), new Alert(result));
-            else
+            }
+            else {
                 currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime +
                         (ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime) *
                                 verifyCnt, new CheckCommitPass(result));
+            }
         } else {
             // abort situation 1
             ModelData.collectedVerification.remove(result.vi.tx.id);
@@ -490,14 +493,16 @@ class ReCheck implements NodeAction {
     public void runOn(Node currentNode) {
 
         TxInput input = consensusParam.input;
-        if (ModelData.verifyUTXO(input, consensusParam.tx.id) || currentNode.getId() < ModelData.maliciousNum)
+        if (ModelData.verifyUTXO(input, consensusParam.tx.id) || currentNode.getId() < ModelData.maliciousNum) {
             currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
-                    ModelData.ECDSAPointAddTime) + ModelData.hashTimePerByte * (1 + ModelData.hashSize),
+                            ModelData.ECDSAPointAddTime) + ModelData.hashTimePerByte * (1 + ModelData.hashSize),
                     new VoteForPass(consensusParam));
-        else
+        }
+        else {
             currentNode.stayBusy((ModelData.verificationTime + 2 * ModelData.ECDSAPointMulTime +
-                    ModelData.ECDSAPointAddTime) + ModelData.hashTimePerByte * (1 + ModelData.hashSize),
+                            ModelData.ECDSAPointAddTime) + ModelData.hashTimePerByte * (1 + ModelData.hashSize),
                     new VoteForRollBack(consensusParam));
+        }
     }
 }
 
@@ -548,7 +553,6 @@ class VerifyRecheck implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
-
         currentNode.stayBusy(2 * ModelData.ECDSAPointMulTime + ModelData.ECDSAPointAddTime,
                 new CollectRecheck(result));
 
