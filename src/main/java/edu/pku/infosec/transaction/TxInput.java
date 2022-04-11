@@ -25,7 +25,6 @@ public class TxInput {
         } catch (NoSuchAlgorithmException e) {
             return 0;
         }
-
     }
 
     @Override
