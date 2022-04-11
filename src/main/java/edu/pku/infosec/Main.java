@@ -76,5 +76,7 @@ public class Main {
             variance += Math.pow(load - average, 2.0);
         }
         System.out.println("Load Variance: " + variance / nodeNum);
+        //TxStat.commitTimeStat();
+        //ModelData.shardLoadStat();
     }
 }

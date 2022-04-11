@@ -1,5 +1,6 @@
 package edu.pku.infosec.event;
 
+import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.node.Network;
 import edu.pku.infosec.node.Node;
 

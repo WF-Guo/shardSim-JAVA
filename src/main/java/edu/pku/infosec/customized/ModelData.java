@@ -16,7 +16,6 @@ public class ModelData {
     public static int hashSize;
     public static double UTXORemoveTime;
     public static double UTXOAddTime;
-    public static long SYSTIME = 0;
 
     public static int nodeNum;
     public static int shardNum;
@@ -30,6 +29,9 @@ public class ModelData {
     public final static Set<Long> CommittedTransactions = new HashSet<>();
     public final static Set<TxInput> UTXO = new HashSet<>();
     public final static Map<TxInput, Long> lockedUTXO = new HashMap<>();
+
+    public final static Map<shardPair, Integer> inputDis = new HashMap<>();
+    public final static Map<shardPair, Integer> txDis = new HashMap<>();
 
     //TODO: every honest validator shares the same UTXO, should we set an independent UTXO set for different validators?
 
@@ -62,6 +64,13 @@ public class ModelData {
     public static void unlockUTXO(TxInput utxo, long tid) {
         if (lockedUTXO.containsKey(utxo) && lockedUTXO.get(utxo) == tid)
             lockedUTXO.remove(utxo);
+    }
+
+    public static void shardLoadStat() {
+        System.out.println("shard load:");
+        for (shardPair s: txDis.keySet()) {
+            System.out.println("(" + s.first + "-" + s.second + "): " + txDis.get(s) + " txs, " + inputDis.get(s) + " inputs");
+        }
     }
 
 }

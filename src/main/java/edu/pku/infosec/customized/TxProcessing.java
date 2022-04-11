@@ -37,14 +37,18 @@ public class TxProcessing implements NodeAction {
             tmp.add(input);
             shardsMapping.put(responsibleShard, tmp);
         }
-        int outputShard = (int) txInfo.id % ModelData.shardNum;
-        if (!shardsMapping.containsKey(outputShard)) {
-            shardsMapping.put(outputShard, new ArrayList<>()); // but no need to verify
+
+        /*
+        if (txInfo.id == 2006344) {
+            System.out.println(EventDriver.getCurrentTime());
         }
+        */
 
         ModelData.collectedVerification.put(txInfo.id, new HashSet<>());
 
-        Set<Integer> shardsSet = shardsMapping.keySet();
+        List<Integer> shardsSet = new ArrayList<>(shardsMapping.keySet());
+
+        Collections.shuffle(shardsSet);
         Iterator<Integer> it = shardsSet.iterator();
         while (it.hasNext()) {
             int firstShard = it.next();
@@ -52,12 +56,30 @@ public class TxProcessing implements NodeAction {
             if (it.hasNext()) {
                 int secondShard = it.next();
                 inputsToVerify.addAll(shardsMapping.get(secondShard));
+                /* shard load statistic */
+                if (!ModelData.inputDis.containsKey(new shardPair(firstShard, secondShard))) {
+                    ModelData.inputDis.put(new shardPair(firstShard, secondShard), inputsToVerify.size());
+                    ModelData.txDis.put(new shardPair(firstShard, secondShard), 1);
+                } else {
+                    ModelData.inputDis.put(new shardPair(firstShard, secondShard), ModelData.inputDis.get(new shardPair(firstShard, secondShard)) + inputsToVerify.size());
+                    ModelData.txDis.put(new shardPair(firstShard, secondShard), ModelData.txDis.get(new shardPair(firstShard, secondShard)) + 1);
+                }
+                 /**/
                 // the size is set to txInfo(x + 16) + inputNum(4) + inputNum * input(12)
                 currentNode.sendToOverlapLeader(firstShard, secondShard,
                         new PreprepareVerify(new VerificationInfo(txInfo, inputsToVerify, firstShard, secondShard)),
                         txInfo.inputs.size() * ModelData.sizePerInput +
                                 txInfo.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead);
             } else {
+                /* shard load statistic */
+                if (!ModelData.inputDis.containsKey(new shardPair(firstShard, firstShard))) {
+                    ModelData.inputDis.put(new shardPair(firstShard, firstShard), inputsToVerify.size());
+                    ModelData.txDis.put(new shardPair(firstShard, firstShard), 1);
+                } else {
+                    ModelData.inputDis.put(new shardPair(firstShard, firstShard), ModelData.inputDis.get(new shardPair(firstShard, firstShard)) + inputsToVerify.size());
+                    ModelData.txDis.put(new shardPair(firstShard, firstShard), ModelData.txDis.get(new shardPair(firstShard, firstShard)) + 1);
+                }
+                /**/
                 currentNode.sendToOverlapLeader(firstShard, firstShard,
                         new PreprepareVerify(new VerificationInfo(txInfo, inputsToVerify, firstShard, firstShard)),
                         txInfo.inputs.size() * ModelData.sizePerInput +
@@ -96,6 +118,11 @@ class PreprepareVerify implements NodeAction {
 
     @Override
     public void runOn(Node currentNode) {
+        /*
+        if (consensusParam.tx.id == 2006344) {
+            System.out.println(EventDriver.getCurrentTime());
+        }
+        */
 
         int verifyCnt = 0;
         if (currentNode.getId() >= ModelData.maliciousNum) {
@@ -199,7 +226,7 @@ class PreprepareReturn implements NodeAction {
             } else {
                 // send to all related shards a result 0
                 Set<Integer> involvedShards = new HashSet<>();
-                Set<Integer> involvedNodes = new HashSet<>();
+                Set<shardPair> involvedOverlapShards = new HashSet<>();
                 for (TxInput input : result.vi.tx.inputs) {
                     int responsibleShard = (int) input.tid % ModelData.shardNum;
                     involvedShards.add(responsibleShard);
@@ -208,16 +235,31 @@ class PreprepareReturn implements NodeAction {
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
                     for (int i = 0; i < ModelData.shardNum; ++i) {
-                        involvedNodes.addAll(ModelData.overlapShards.get(new shardPair(shard, i)));
+                        involvedOverlapShards.add(new shardPair(shard, i));
                     }
                 }
-                for (int node : involvedNodes) {
-                    currentNode.sendMessage(node, new CheckCommit(new VerificationResult(0, result.vi)),
+                for (shardPair p : involvedOverlapShards) {
+                    currentNode.sendToOverlapLeader(p.first, p.second,
+                            new LeaderStopCommit(new VerificationResult(newCnt, result.vi)),
                             ModelData.hashSize + 1 + (1 + newCnt) * ModelData.ECDSAPointSize);
                 }
             }
         }
 
+    }
+}
+
+class LeaderStopCommit implements NodeAction {
+    private final VerificationResult result;
+
+    public LeaderStopCommit(VerificationResult result) {
+        this.result = result;
+    }
+
+    @Override
+    public void runOn(Node currentNode) {
+        currentNode.leaderUpdateShard(new CheckCommit(new VerificationResult(0, result.vi)),
+                ModelData.hashSize + 1 + (1 + result.cnt) * ModelData.ECDSAPointSize);
     }
 }
 
@@ -298,7 +340,7 @@ class PrepareReturn implements NodeAction {
 
                 // send to all related shards
                 Set<Integer> involvedShards = new HashSet<>();
-                Set<Integer> involvedNodes = new HashSet<>();
+                Set<shardPair> involvedOverlapShards = new HashSet<>();
                 for (TxInput input : result.vi.tx.inputs) {
                     int responsibleShard = (int) input.tid % ModelData.shardNum;
                     involvedShards.add(responsibleShard);
@@ -307,11 +349,11 @@ class PrepareReturn implements NodeAction {
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
                     for (int i = 0; i < ModelData.shardNum; ++i) {
-                        involvedNodes.addAll(ModelData.overlapShards.get(new shardPair(shard, i)));
+                        involvedOverlapShards.add(new shardPair(shard, i));
                     }
                 }
-                for (int node : involvedNodes) {
-                    currentNode.sendMessage(node, new CheckCommit(new VerificationResult(1, result.vi)),
+                for (shardPair p : involvedOverlapShards) {
+                    currentNode.sendToOverlapLeader(p.first, p.second, new LeaderFowardCommit(result),
                             1 + result.vi.tx.inputs.size() * ModelData.sizePerInput +
                                     result.vi.tx.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead +
                                     ModelData.ECDSANumberSize + result.cnt * ModelData.ECDSAPointSize);
@@ -320,6 +362,22 @@ class PrepareReturn implements NodeAction {
         } else
             currentNode.sonWaitCnt.put(tid, sonWaitCnt - 1);
 
+    }
+}
+
+class LeaderFowardCommit implements NodeAction {
+    private final VerificationResult result;
+
+    public LeaderFowardCommit(VerificationResult result) {
+        this.result = result;
+    }
+
+    @Override
+    public void runOn(Node currentNode) {
+        currentNode.leaderUpdateShard(new CheckCommit(new VerificationResult(1, result.vi)),
+                1 + result.vi.tx.inputs.size() * ModelData.sizePerInput +
+                        result.vi.tx.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead +
+                        ModelData.ECDSANumberSize + result.cnt * ModelData.ECDSAPointSize);
     }
 }
 
@@ -598,7 +656,7 @@ class CollectRecheck implements NodeAction {
 
                 // send to all related shards
                 Set<Integer> involvedShards = new HashSet<>();
-                Set<Integer> involvedNodes = new HashSet<>();
+                Set<shardPair> involvedOverlapShards = new HashSet<>();
                 for (TxInput input : result.ri.tx.inputs) {
                     int rollbackShard = (int) input.tid % ModelData.shardNum;
                     involvedShards.add(rollbackShard);
@@ -607,12 +665,12 @@ class CollectRecheck implements NodeAction {
                 involvedShards.add(outputShard);
                 for (int shard : involvedShards) {
                     for (int i = 0; i < ModelData.shardNum; ++i) {
-                        involvedNodes.addAll(ModelData.overlapShards.get(new shardPair(shard, i)));
+                        involvedOverlapShards.add(new shardPair(shard, i));
                     }
                 }
-                for (int node : involvedNodes) {
-                    currentNode.sendMessage(node, new RollBack(result.ri.tx), ModelData.hashSize +
-                            newRollBackCnt * (ModelData.ECDSAPointSize * 2 + ModelData.ECDSANumberSize));
+                int size = ModelData.hashSize + newRollBackCnt * (ModelData.ECDSAPointSize * 2 + ModelData.ECDSANumberSize);
+                for (shardPair p : involvedOverlapShards) {
+                    currentNode.sendToOverlapLeader(p.first, p.second, new LeaderStartRollBack(result.ri.tx, size), size);
                 }
                 return;
             }
@@ -625,6 +683,21 @@ class CollectRecheck implements NodeAction {
             // TODO: if recheck decides not to roll back, nothing need to be done now,
             // TODO: but we may add punishment for fake alert
         }
+    }
+}
+
+class LeaderStartRollBack implements NodeAction {
+    private final TxInfo tx;
+    private final int size;
+
+    public LeaderStartRollBack(TxInfo tx, int size) {
+        this.tx = tx;
+        this.size = size;
+    }
+
+    @Override
+    public void runOn(Node currentNode) {
+        currentNode.leaderUpdateShard(new RollBack(tx), size);
     }
 }
 

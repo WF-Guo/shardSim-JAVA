@@ -90,6 +90,15 @@ public class MyNetwork extends Network {
         sendMessage(from, nodes.get(0), receivingAction, size);
     }
 
+    final public void leaderUpdateShard(int from, NodeAction receivingAction, int size)
+    {
+        shardPair shards = originalShardIndex.get(from);
+        List<Integer> nodes = overlapShards.get(shards);
+        for (int node : nodes) {
+            sendMessage(from, node, receivingAction, size);
+        }
+    }
+
     // hash is necessary so that for a same transaction, a same set of nodes can be selected
     final public void sendToHalfOriginalShard
             (int from, int originalShard, int hash, NodeAction receivingAction, int size)

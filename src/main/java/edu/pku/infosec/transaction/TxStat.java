@@ -1,5 +1,6 @@
 package edu.pku.infosec.transaction;
 
+import edu.pku.infosec.customized.ModelData;
 import edu.pku.infosec.event.EventDriver;
 import edu.pku.infosec.util.GroupedSet;
 import edu.pku.infosec.util.RandomQueue;
@@ -55,7 +56,7 @@ public class TxStat {
             System.out.println("Time: " + EventDriver.getCurrentTime());
             System.out.println("EventQueueSize: " + EventDriver.getEventQueueSize());
         }
-        */
+        /**/
     }
 
     public static TxInput getRandomUTXO() {
@@ -79,6 +80,23 @@ public class TxStat {
         long n = commitTime.size();
         double time = EventDriver.getCurrentTime();
         return n / time;
+    }
+
+    public static void commitTimeStat() {
+        double max = 0, min = 100000;
+        long maxid = 0, minid = 0;
+        for (long tid : commitTime.keySet()) {
+            if (commitTime.get(tid) - submitTime.get(tid) > max) {
+                maxid = tid;
+            }
+            if (commitTime.get(tid) - submitTime.get(tid) < max) {
+                minid = tid;
+            }
+            max = Math.max(max, commitTime.get(tid) - submitTime.get(tid));
+            min = Math.min(min, commitTime.get(tid) - submitTime.get(tid));
+        }
+        System.out.println("transaction " + maxid + " use max time " + max + " to commit");
+        System.out.println("transaction " + minid + " use min time " + min + " to commit");
     }
 
     public static int processedNum() {
