@@ -50,7 +50,7 @@ public class TxStat {
         for (TxInput spent : tx.inputs)
             relatedTxs.removeGroup(spent);
 
-        /* debug */
+        /* debug
         if (commitTime.size() > 9700 && commitTime.size() % 10 == 0) {
             System.out.println(commitTime.size() + " transactions committed");
             System.out.println("Time: " + EventDriver.getCurrentTime());

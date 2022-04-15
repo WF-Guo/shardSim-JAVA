@@ -58,6 +58,13 @@ public class Node {
         ((MyNetwork) network).sendToOverlapLeader(id, firstshard, secondshard, receivingAction, size);
     }
 
+    public void sendToOverlapShard(int firstshard, int secondshard, NodeAction receivingAction, int size)
+    {
+        if(this.id == -1)
+            throw new RuntimeException("sendToOverlapShard() is for nodes");
+        ((MyNetwork) network).sendToOverlapShard(id, firstshard, secondshard, receivingAction, size);
+    }
+
     public void leaderUpdateShard(NodeAction receivingAction, int size)
     {
         if(this.id == -1)

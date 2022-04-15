@@ -48,34 +48,48 @@ public class MyNetwork extends Network {
                         nodeList.add(permutation.get(k));
                         originalShardIndex.put(permutation.get(k), new shardPair(i, j));
                     }
+                    /* specific network topology
                     for (int k = pos; k < size; ++k) {
                         for (int l = k + 1; l < size; ++l) {
-                            addEdge(permutation.get(k), permutation.get(l), 100, 20972);
-                            addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                            double bias = random.nextDouble();
+                            addEdge(permutation.get(k), permutation.get(l), 100 - bias, 20000);
+                            addEdge(permutation.get(l), permutation.get(k), 100 - bias, 20000);
                         }
-                    }
+                    } */
                 }
                 else {
                     for (int k = pos; k < pos + segment; ++k) {
                         nodeList.add(permutation.get(k));
                         originalShardIndex.put(permutation.get(k), new shardPair(i, j));
                     }
-                    // add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
+                    /* add edges, by default, bandwidth is 20Mbps, all edges have a latency of 100ms
                     for (int k = pos; k < pos + segment; ++k) {
                         for (int l = k + 1; l < size; ++l) {
                             if (l < pos + segment) {
-                                addEdge(permutation.get(k), permutation.get(l), 100, 20972);
-                                addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                                double bias = random.nextDouble();
+                                addEdge(permutation.get(k), permutation.get(l), 100 - bias, 2500);
+                                addEdge(permutation.get(l), permutation.get(k), 100 - bias, 2500);
                             } else if (random.nextDouble() <= 0.005) // on average each node has around 20 links
                             {
-                                addEdge(permutation.get(k), permutation.get(l), 100, 20972);
-                                addEdge(permutation.get(l), permutation.get(k), 100, 20972);
+                                double bias = random.nextDouble();
+                                addEdge(permutation.get(k), permutation.get(l), 100 - bias, 2500);
+                                addEdge(permutation.get(l), permutation.get(k), 100 - bias, 2500);
                             }
                         }
                     }
+                    */
                 }
                 pos += segment;
                 overlapShards.put(new shardPair(i, j), nodeList);
+            }
+        }
+        // add edge that each message has a latency of 100 ms
+        for (int i = 0; i < size; ++i) {
+            for (int j = 0; j < size; ++j)
+            {
+                if (i == j)
+                    continue;
+                addEdge(i, j, 100, 2500);
             }
         }
         ModelData.originalShardIndex = originalShardIndex;
@@ -88,6 +102,16 @@ public class MyNetwork extends Network {
         shardPair shards = new shardPair(firstshard, secondshard);
         List<Integer> nodes = overlapShards.get(shards);
         sendMessage(from, nodes.get(0), receivingAction, size);
+    }
+
+    final public void sendToOverlapShard(int from, int firstshard, int secondshard,
+                                          NodeAction receivingAction, int size)
+    {
+        shardPair shards = new shardPair(firstshard, secondshard);
+        List<Integer> nodes = overlapShards.get(shards);
+        for (int node : nodes) {
+            sendMessage(from, node, receivingAction, size);
+        }
     }
 
     final public void leaderUpdateShard(int from, NodeAction receivingAction, int size)

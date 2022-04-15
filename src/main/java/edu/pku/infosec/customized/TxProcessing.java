@@ -239,8 +239,13 @@ class PreprepareReturn implements NodeAction {
                     }
                 }
                 for (shardPair p : involvedOverlapShards) {
+                    /*
                     currentNode.sendToOverlapLeader(p.first, p.second,
                             new LeaderStopCommit(new VerificationResult(newCnt, result.vi)),
+                            ModelData.hashSize + 1 + (1 + newCnt) * ModelData.ECDSAPointSize);
+                     */
+                    currentNode.sendToOverlapShard(p.first, p.second,
+                            new CheckCommit(new VerificationResult(0, result.vi)),
                             ModelData.hashSize + 1 + (1 + newCnt) * ModelData.ECDSAPointSize);
                 }
             }
@@ -353,7 +358,14 @@ class PrepareReturn implements NodeAction {
                     }
                 }
                 for (shardPair p : involvedOverlapShards) {
+                    /*
                     currentNode.sendToOverlapLeader(p.first, p.second, new LeaderFowardCommit(result),
+                            1 + result.vi.tx.inputs.size() * ModelData.sizePerInput +
+                                    result.vi.tx.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead +
+                                    ModelData.ECDSANumberSize + result.cnt * ModelData.ECDSAPointSize);
+                    */
+                    currentNode.sendToOverlapShard(p.first, p.second,
+                            new CheckCommit(new VerificationResult(1, result.vi)),
                             1 + result.vi.tx.inputs.size() * ModelData.sizePerInput +
                                     result.vi.tx.outputs.size() * ModelData.sizePerOutput + ModelData.txOverhead +
                                     ModelData.ECDSANumberSize + result.cnt * ModelData.ECDSAPointSize);
@@ -670,7 +682,8 @@ class CollectRecheck implements NodeAction {
                 }
                 int size = ModelData.hashSize + newRollBackCnt * (ModelData.ECDSAPointSize * 2 + ModelData.ECDSANumberSize);
                 for (shardPair p : involvedOverlapShards) {
-                    currentNode.sendToOverlapLeader(p.first, p.second, new LeaderStartRollBack(result.ri.tx, size), size);
+                    //currentNode.sendToOverlapLeader(p.first, p.second, new LeaderStartRollBack(result.ri.tx, size), size);
+                    currentNode.sendToOverlapLeader(p.first, p.second, new RollBack(result.ri.tx), size);
                 }
                 return;
             }

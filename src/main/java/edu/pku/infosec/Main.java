@@ -42,7 +42,7 @@ public class Main {
             initialUTXONum = 10000;
         JSONObject otherConfig = config.getJSONObject("model");
         Network network = new MyNetwork(nodeNum, limitBandwidth, externalLatency, otherConfig);
-        network.calcPath();
+        // network.calcPath(); // origin
         // Initializing utxo set
         for (int i = 0; i < initialUTXONum; i++) {
             TxInfo coinbase = new TxInfo();

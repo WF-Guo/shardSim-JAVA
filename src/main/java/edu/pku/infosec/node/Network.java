@@ -45,7 +45,8 @@ public abstract class Network {
     protected final void addEdge(int u, int v, double latency, double bandwidth) {
         if (u < 0 || v < 0 || u >= nodes.length || v >= nodes.length)
             throw new RuntimeException("Node index out of bounds of length " + nodes.length);
-        graph.get(v).add(new Edge(u, v, latency, bandwidth));
+        //graph.get(v).add(new Edge(u, v, latency, bandwidth)); // origin
+        nextEdge[u][v] = new Edge(u, v, latency, bandwidth); // only work for fully connected graph
     }
 
     public final void calcPath() {
