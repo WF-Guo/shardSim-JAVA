@@ -13,7 +13,7 @@ public abstract class Network {
     public final Node externalNode;
     private final Node[] nodes;
     private final List<List<Edge>> graph;
-    private final int[][] dist;
+    private final double[][] dist;
     private final Edge[][] nextEdge;
     private final boolean limitBandwidth;
     private final long externalLatency;
@@ -27,22 +27,22 @@ public abstract class Network {
             nodes[i] = new Node(i, this);
         }
         graph = new ArrayList<>(size);
-        dist = new int[size][size];
+        dist = new double[size][size];
         nextEdge = new Edge[size][size];
         for (int i = 0; i < size; i++) {
             graph.add(new ArrayList<>());
             for (int j = 0; j < size; j++)
-                dist[i][j] = Integer.MAX_VALUE;
+                dist[i][j] = Double.MAX_VALUE;
         }
     }
 
-    protected final void addEdge(int u, int v, int latency) {
+    protected final void addEdge(int u, int v, double latency) {
         if (limitBandwidth)
             throw new RuntimeException("Bandwidth is required in this network.");
         addEdge(u, v, latency, 0);
     }
 
-    protected final void addEdge(int u, int v, int latency, int bandwidth) {
+    protected final void addEdge(int u, int v, double latency, double bandwidth) {
         if (u < 0 || v < 0 || u >= nodes.length || v >= nodes.length)
             throw new RuntimeException("Node index out of bounds of length " + nodes.length);
         graph.get(v).add(new Edge(u, v, latency, bandwidth));
@@ -52,16 +52,16 @@ public abstract class Network {
         // Dijkstra
         class State implements Comparable<State> {
             final int nodeID;
-            final int dist;
+            final double dist;
 
-            public State(int nodeID, int dist) {
+            public State(int nodeID, double dist) {
                 this.nodeID = nodeID;
                 this.dist = dist;
             }
 
             @Override
             public int compareTo(State s) {
-                return Integer.compare(dist, s.dist);
+                return Double.compare(dist, s.dist);
             }
 
         }
@@ -85,7 +85,7 @@ public abstract class Network {
                 }
             }
             for (int i = 0; i < nodes.length; i++)
-                if (dist[i][target] == Integer.MAX_VALUE)
+                if (dist[i][target] == Double.MAX_VALUE)
                     throw new RuntimeException("Graph is unconnected!");
         }
     }
@@ -146,9 +146,9 @@ public abstract class Network {
                 } else {
                     if (this == e.packetQueue.peek())
                         e.packetQueue.remove();
-                    e.nextIdleTime = EventDriver.getCurrentTime() + (double) size / e.bandwidth;
+                    e.nextIdleTime = EventDriver.getCurrentTime() + size / e.bandwidth;
                     double receivingTime =
-                            EventDriver.getCurrentTime() + e.latency + (double) size / e.bandwidth;
+                            EventDriver.getCurrentTime() + e.latency + size / e.bandwidth;
                     EventDriver.insertEvent(receivingTime, nodes[e.v], this); // Relay!
                     if (!e.packetQueue.isEmpty())
                         EventDriver.insertEvent(e.nextIdleTime, currentNode, e.packetQueue.peek());
@@ -161,12 +161,12 @@ public abstract class Network {
 class Edge {
     protected final int u;
     protected final int v;
-    protected final int latency;
-    protected final int bandwidth;
+    protected final double latency;
+    protected final double bandwidth;
     protected final LinkedList<NodeAction> packetQueue;
     protected double nextIdleTime;
 
-    public Edge(int u, int v, int latency, int bandwidth) {
+    public Edge(int u, int v, double latency, double bandwidth) {
         this.u = u;
         this.v = v;
         this.latency = latency;
